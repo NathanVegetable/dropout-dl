@@ -449,7 +449,7 @@ namespace dropout_dl {
 			std::fstream captions_file(filepath + ".vtt",
 							 std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
 
-			captions_file << get_generic_page(this->captions_url);
+			captions_file << get_generic_page(this->captions_url, this->episode_url);
 
 		}
 

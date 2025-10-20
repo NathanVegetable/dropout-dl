@@ -68,7 +68,7 @@ namespace dropout_dl {
 		while (true) {
 			std::string next_page_url = this->url + "?page=" + std::to_string(page_index);
 
-			std::string next_page_data = get_generic_page(next_page_url, &status_code);
+			std::string next_page_data = get_generic_page(next_page_url, this->url, &status_code);
 
 			if (status_code != 200) {
 				break;

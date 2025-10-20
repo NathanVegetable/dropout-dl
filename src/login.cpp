@@ -113,7 +113,7 @@ void dropout_dl::login::get_login_info_from_file(const std::string& filename, st
 void dropout_dl::login::get_login_tokens(std::string& session_token, std::string& cf_bm_token, std::string& authentication_token, std::string& session_expiration) {
 	std::string header_string = "";
 
-	std::string login_page_data = get_generic_page(dropout_dl::login::login_url, nullptr, false, &header_string);
+	std::string login_page_data = get_generic_page(dropout_dl::login::login_url, dropout_dl::login::login_url, nullptr, false, &header_string);
 
 	size_t set_cookie_index = header_string.find("set-cookie: _session=");
 

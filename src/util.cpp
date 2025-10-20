@@ -226,7 +226,7 @@ namespace dropout_dl {
 	}
 
 
-	std::string get_generic_page(const std::string& url, long* response_status, bool verbose, std::string* header_string) {
+	std::string get_generic_page(const std::string& url, const std::string& referer, long* response_status, bool verbose, std::string* header_string) {
 		CURL *hnd;
 		struct curl_slist *slist1;
 
@@ -238,7 +238,7 @@ namespace dropout_dl {
 		slist1 = curl_slist_append(slist1, "Accept-Encoding: utf-8");
 		slist1 = curl_slist_append(slist1, "DNT: 1");
 		slist1 = curl_slist_append(slist1, "Connection: keep-alive");
-		slist1 = curl_slist_append(slist1, "Referer: https://www.dropout.tv/");
+		slist1 = curl_slist_append(slist1, "Referer: https://watch.dropout.tv/");
 		slist1 = curl_slist_append(slist1, "Upgrade-Insecure-Requests: 1");
 		slist1 = curl_slist_append(slist1, "Sec-Fetch-Dest: iframe");
 		slist1 = curl_slist_append(slist1, "Sec-Fetch-Mode: navigate");
