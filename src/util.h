@@ -161,7 +161,6 @@ namespace dropout_dl {
 	 */
 	 int get_int_in_string(const std::string& string, int& starting_index);
 
-
 	/**
 	 *
 	 * @param value - the string to be encoded

@@ -14,6 +14,7 @@
 
 namespace dropout_dl {
 	namespace login {
+		static std::string login_url = "https://watch.dropout.tv/login";
 		void get_cookies(std::string& session, const std::string& login_file);
 
 		void get_login_info_from_file(const std::string& filename, std::string& email, std::string& password);
