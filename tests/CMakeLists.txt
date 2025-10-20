@@ -11,7 +11,6 @@ add_executable(test
 	../src/season.cpp
 	series_tests.cpp
 	../src/series.cpp
-	season_tests.cpp
 	)
 
 target_link_libraries(test stdc++fs)

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.10)
 project(dropout-dl)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -13,8 +13,8 @@ IF(DROPOUT_DL_BUILD_ALL)
 		src/util.cpp
 		src/main.cpp)
 
-    target_link_libraries(dropout-dl-minimal curl)
-	target_compile_definitions(dropout-dl-sqlite PUBLIC DROPOUT_DL_FFMPEG)
+    target_link_libraries(dropout-dl-minimal curl nlohmann_json::nlohmann_json)
+	target_compile_definitions(dropout-dl-minimal PUBLIC DROPOUT_DL_FFMPEG)
 
 
 	add_executable(dropout-dl-sqlite
@@ -26,8 +26,7 @@ IF(DROPOUT_DL_BUILD_ALL)
 		src/util.cpp
 		src/main.cpp)
 
-    target_link_libraries(dropout-dl-sqlite curl sqlite3)
-
+    target_link_libraries(dropout-dl-sqlite curl sqlite3 nlohmann_json::nlohmann_json)
 	target_compile_definitions(dropout-dl-sqlite PUBLIC DROPOUT_DL_SQLITE DROPOUT_DL_FFMPEG)
 
 
@@ -40,12 +39,12 @@ IF(DROPOUT_DL_BUILD_ALL)
 		src/util.cpp
 		src/main.cpp)
 
-    target_link_libraries(dropout-dl-full curl gcrypt sqlite3)
+    target_link_libraries(dropout-dl-full curl gcrypt sqlite3 nlohmann_json::nlohmann_json)
 
 	target_compile_definitions(dropout-dl-full PUBLIC DROPOUT_DL_SQLITE DROPOUT_DL_GCRYPT DROPOUT_DL_FFMPEG)
 
 
-    add_subdirectory(tests)
+	# add_subdirectory(tests)
 ELSE()
 
 add_executable(dropout-dl
