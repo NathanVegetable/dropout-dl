@@ -217,7 +217,7 @@ namespace dropout_dl {
 	size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
 	{
 		if(userp == nullptr)
-			std::cerr << RED << "ERROR: WriteCallBack failed to write to output buffer :(\n";
+			std::cerr << RED << "ERROR: WriteCallback failed to write to output buffer :(\n";
 		else
 			((std::string*)userp)->append((char*)contents, size * nmemb);
 		if(!size)
@@ -338,7 +338,7 @@ namespace dropout_dl {
 	}
 	int get_int_in_string(const std::string& str, int& starting_index)  {
 		std::smatch string_number;
-		if(!std::regex_search(str,string_number,std::regex("-?\\d+"))) {
+		if(!std::regex_search(str.begin() + starting_index, str.end(),string_number,std::regex("-?\\d+"))) {
 			std::cerr << YELLOW << "WARN: Unable to find number in string '" << str << "'!\n" << RESET;
 			return 0;
 		}

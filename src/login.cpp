@@ -21,10 +21,11 @@ void dropout_dl::login::get_cookies(std::string& session, const std::string& log
 		int day_of_the_month_index = 0;
 		int day_of_the_month = get_int_in_string(expiration_date, day_of_the_month_index);
 
-		std::string month = expiration_date.substr(day_of_the_month_index + 1, 3);
+		int month_index = day_of_the_month_index + (day_of_the_month > 9 ? 3 : 2);
+		std::string month = expiration_date.substr(month_index, 3);
 		int month_as_int = get_month_string_as_int(month);
 
-		int year_index = day_of_the_month_index + 4;
+		int year_index = month_index + month.size();
 		int year = get_int_in_string(expiration_date, year_index);
 
 		time_t now = time(0);
