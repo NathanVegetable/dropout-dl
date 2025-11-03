@@ -18,7 +18,12 @@ namespace dropout_dl {
 					if (substr_is(html_data, j, close_tag)) {
 						for (int l = 0; l < html_data.size() - j; l++) {
 							if (substr_is(html_data, j + l, close_a)) {
-								return format_name_string(html_data.substr(j + 1, l - 1));
+								// l is the distance from the '>' to '</h1>'
+								// We want to extract from j+1 (after '>') to j+l (before '</h1>')
+								if (l > 0) {
+									return format_name_string(html_data.substr(j + 1, l - 1));
+								}
+								return "ERROR";
 							}
 						}
 					}
@@ -74,22 +79,7 @@ namespace dropout_dl {
 							season_name = this->page_data.substr(i, j);
 
 							// Remove leading and trailing whitespace
-							bool leading_whitespace = true;
-							int name_start;
-							int name_end;
-							for (int k = 0; k < season_name.size(); k++) {
-								if (season_name[k] != ' ' && season_name[k] != '\t' && season_name[k] != '\n') {
-									name_start = k;
-									break;
-								}
-							}
-							for (int k = season_name.size() - 1; k > 0; k--) {
-								if (season_name[k] != ' ' && season_name[k] != '\t' && season_name[k] != '\n') {
-									name_end = k;
-									break;
-								}
-							}
-							season_name = season_name.substr(name_start, season_name.size() - name_start - name_end);
+							season_name = remove_leading_and_following_whitespace(season_name);
 
 							out.emplace_back(season_url, season_name, this->session_cookie, this->name, this->download_captions, this->download_captions_only, this->rate_limit);
 
@@ -166,23 +156,7 @@ namespace dropout_dl {
 								season_name = html_data.substr(i, j);
 
 								// Remove leading and trailing whitespace
-								bool leading_whitespace = true;
-								int name_start;
-								int name_end;
-								for (int k = 0; k < season_name.size(); k++) {
-									if (season_name[k] != ' ' && season_name[k] != '\t' && season_name[k] != '\n') {
-										name_start = k;
-										break;
-									}
-								}
-								for (int k = season_name.size() - 1; k > 0; k--) {
-									if (season_name[k] != ' ' && season_name[k] != '\t' && season_name[k] != '\n') {
-										name_end = k;
-										break;
-									}
-								}
-								season_name = season_name.substr(name_start,
-																 season_name.size() - name_start - name_end);
+								season_name = remove_leading_and_following_whitespace(season_name);
 
 								return {season_url, season_name, session_cookie, get_series_name(html_data), download_captions, download_captions_only, rate_limit};
 							}

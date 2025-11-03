@@ -6,7 +6,8 @@
 namespace dropout_dl {
 	// dropout-dl helpers
 	bool substr_is(const std::string& string, int start, const std::string& test_str) {
-		if (test_str.size() != test_str.size())
+		// Check if there's enough space in string for test_str starting at start
+		if (start + test_str.size() > string.size())
 			return false;
 
 		for (int i = start, j = 0; i < start + test_str.size(); i++, j++) {
@@ -27,11 +28,27 @@ namespace dropout_dl {
 
 
 	std::string remove_leading_and_following_whitespace(const std::string& str) {
+		if (str.empty()) {
+			return "";
+		}
+
 		int start = 0;
 		int end = str.length() - 1;
 
-		for (; str[start] == ' ' || str[start] == '\t' || str[start] == '\n'; start++);
-		for (; str[end] == ' ' || str[end] == '\t' || str[end] == '\n'; end--);
+		// Find first non-whitespace character
+		while (start <= end && (str[start] == ' ' || str[start] == '\t' || str[start] == '\n')) {
+			start++;
+		}
+
+		// If string is all whitespace
+		if (start > end) {
+			return "";
+		}
+
+		// Find last non-whitespace character
+		while (end >= start && (str[end] == ' ' || str[end] == '\t' || str[end] == '\n')) {
+			end--;
+		}
 
 		return str.substr(start, end - start + 1);
 	}
