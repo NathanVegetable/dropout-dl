@@ -274,21 +274,15 @@ namespace dropout_dl {
 		episode(const std::string& episode_url, cookie session_cookie, const std::string& series, const std::string& season, int episode_number, int season_number, bool verbose = false, bool download_captions = false, bool download_captions_only = false) {
 			this->episode_url = episode_url;
 			this->verbose = verbose;
-
 			episode_data = get_episode_page(episode_url, session_cookie.value);
-
 			if (verbose) {
 				std::cout << "Got page data\n";
 			}
-
 			metadata = get_meta_data_json(episode_data);
-
 			if (verbose) {
 				std::cout << "Got episode metadata: " << metadata << '\n';
 			}
-
 			name = get_episode_name(metadata);
-
 			if (verbose) {
 				std::cout << "Got name: " << name << '\n';
 			}
@@ -297,13 +291,11 @@ namespace dropout_dl {
 				std::cerr << "EPISODE ERROR: Invalid Episode URL\n";
 				exit(6);
 			}
-
 			this->series = series;
 
 			this->series_directory = format_filename(this->series);
 
 			this->season = season;
-
 			int episode_number_from_page = get_episode_number(episode_data, season_number);
 			if (episode_number_from_page != -1) {
 				this->episode_number = episode_number_from_page;
@@ -318,18 +310,13 @@ namespace dropout_dl {
 			}
 
 			this->season_number = season_number;
-
-
 			this->embedded_url = get_embed_url(episode_data);
-
 			replace_all(this->embedded_url, "&amp;", "&");
 
 			if (verbose) {
 				std::cout << "Got embedded url: " << this->embedded_url << '\n';
 			}
-
 			this->embedded_page_data = get_generic_page(this->embedded_url);
-
 			if (this->embedded_page_data.find("you are not authorized") != std::string::npos) {
 				std::cerr << "ERROR: Could not access video. Try refreshing cookies.\n";
 				exit(6);

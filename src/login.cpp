@@ -56,36 +56,26 @@ void dropout_dl::login::get_cookies(std::string& session, const std::string& log
 		std::cout << YELLOW << "Cached tokens expired" << RESET << "\n";
 	}
 
-	std::cout << "Logging in...\n";
-
+	std::cout << "Logging in...\n" << std::flush;
 	get_login_info_from_file(login_file, email, password);
-
 	/// Needed to login properly
 	std::string authentication;
 	std::string cf_bm;
 	// Needed for caching
 	std::string session_expiration;
 	get_login_tokens(session, cf_bm, authentication, session_expiration);
-
 	if (!login_with_tokens(email, password, session, cf_bm, authentication)) {
 		std::cerr << RED << "ERROR: Could not login. Check your login. If you are certain your information is correct please report this issue.\n";
 		exit(1);
 	}
-
 	std::cout << GREEN << "Successfully logged in.\n" << RESET;
-
 	std::cout << "Caching tokens...\r";
-
-
 	if (!std::filesystem::is_directory(cache_directory)) {
 		std::filesystem::create_directories(cache_directory);
 	}
-
 	cache_file.open(cache_file_path, std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
-
 	cache_file << session << "\n" << session_expiration << "\n";
-
-	std::cout << GREEN "Cached tokens to " << cache_file_path << "\n" << RESET;
+	std::cout << GREEN << "Cached tokens to " << cache_file_path << "\n" << RESET;
 }
 
 void dropout_dl::login::get_login_info_from_file(const std::string& filename, std::string& email, std::string& password) {
@@ -165,11 +155,17 @@ bool dropout_dl::login::login_with_tokens(const std::string& email, const std::s
 
 
 	/// Hide output
-	FILE* nullvoid = fopen("/dev/null", "r");
-	curl_easy_setopt(hnd, CURLOPT_WRITEDATA, nullvoid);
+	FILE* nullvoid = fopen("/dev/null", "w");
+	if (nullvoid != NULL) {
+		curl_easy_setopt(hnd, CURLOPT_WRITEDATA, nullvoid);
+	}
 
 
 	ret = curl_easy_perform(hnd);
+
+	if (nullvoid != NULL) {
+		fclose(nullvoid);
+	}
 
 	// set the session token to the new value in the response header.
 	session = get_substring_in(header_string, "set-cookie: _session=", ";");

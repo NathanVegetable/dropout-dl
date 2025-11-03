@@ -17,19 +17,19 @@ namespace dropout_dl {
 				return {};
 			}
 		}
-
 		for (int i = link_start; i < html_data.size(); i++) {
 			if (substr_is(html_data, i, "href=\"")) {
 				i += 6;
 				for (int j = 0; j + i < html_data.size(); j++) {
 					if (html_data[i + j] == '"') {
 						start_point += 15;
+						std::string url = html_data.substr(i, j);
 						std::string episode_text = get_substring_in(html_data, R"(<span class='media-identifier media-episode'>)", "</span>", i);
 						int episode_number = -1;
 						if (!episode_text.empty()) {
 							episode_number = get_int_in_string(episode_text);
 						}
-						return episode(html_data.substr(i, j), session_cookie, this->series_name, this->name, episode_number, this->season_number, false, this->download_captions, this->download_captions_only);
+						return episode(url, session_cookie, this->series_name, this->name, episode_number, this->season_number, false, this->download_captions, this->download_captions_only);
 					}
 				}
 			}
@@ -56,10 +56,7 @@ namespace dropout_dl {
 
 	std::vector<episode> season::get_episodes(const cookie& session_cookie) {
 		std::vector<episode> out;
-
 		add_episodes_to_vector(session_cookie, this->page_data, out);
-
-
 		// Find episodes hidden behind "Show More". This is sort of a hack but it should be fine.
 		// What we do is get the page data for the next page (this is what the "show more" button does behind the scenes) and check if it exists.
 		// If it does get the episodes and check the next page, otherwise just return from what we got from the first page

@@ -115,7 +115,6 @@ namespace dropout_dl {
 
 	season series::get_season(const std::string &url, const cookie& session_cookie, bool download_captions, bool download_captions_only = false, uint32_t rate_limit = 2000) {
 		std::string html_data = get_generic_page(url);
-
 		std::string search_class("js-switch-season");
 		std::string open_select("<select");
 		std::string close_tag(">");
@@ -124,7 +123,6 @@ namespace dropout_dl {
 		std::string open_option("<option");
 		std::string close_option("</option>");
 		std::string value("value=");
-
 		bool seasons_dropdown = false;
 		bool selected = false;
 		std::string season_url;
@@ -173,8 +171,8 @@ namespace dropout_dl {
 
 								// Remove leading and trailing whitespace
 								season_name = remove_leading_and_following_whitespace(season_name);
-
-								return {season_url, season_name, session_cookie, get_series_name(html_data), download_captions, download_captions_only, rate_limit};
+								std::string series_name = get_series_name(html_data);
+								return {season_url, season_name, session_cookie, series_name, download_captions, download_captions_only, rate_limit};
 							}
 
 							season_url.clear();
