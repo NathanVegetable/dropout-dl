@@ -71,7 +71,7 @@ namespace dropout_dl {
 			 *
 			 * Downloads all the episodes of the season. Appends the season to the series directory
 			 */
-			void download(const std::string& quality, const std::string& series_directory);
+			void download(const std::string& quality, const std::string& series_directory, const std::string& container_format = "mp4");
 
 			/**
 			 *

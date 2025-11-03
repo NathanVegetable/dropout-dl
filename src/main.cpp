@@ -32,6 +32,7 @@ namespace dropout_dl {
 		std::string login_file = "login"; /// Default incase the option is not used
 		std::string output_directory;
 		std::string episode;
+		std::string container_format = "mp4"; /// Default container format
 		cookie session_cookie;
 
 		/**
@@ -116,7 +117,18 @@ namespace dropout_dl {
 					}
 					rate_limit = std::stoi(args[++i]);
 				}
-				else if (arg == "login-file" || arg == "lf") {
+				else if (arg == "format" || arg == "f") {
+				if (i + 1 >= args.size()) {
+					std::cerr << "ARGUMENT PARSE ERROR: --format used with too few following arguments\n";
+					exit(8);
+				}
+				container_format = args[++i];
+				if (container_format != "mp4" && container_format != "mkv") {
+					std::cerr << "ARGUMENT PARSE ERROR: --format must be either 'mp4' or 'mkv'\n";
+					exit(8);
+				}
+			}
+			else if (arg == "login-file" || arg == "lf") {
 					if (i + 1 >= args.size()) {
 						std::cerr << "ARGUMENT PARSE ERROR: --login-file used with too few following arguments\n";
 						exit(8);
@@ -150,6 +162,7 @@ namespace dropout_dl {
 								 "\t                             'lowest' - download the lowest possible quality\n"
 								 "\t--output            -o   Set the output filename. Only works for single episode downloads\n"
 								 "\t--output-directory  -d   Set the directory where files are output\n"
+							 "\t--format            -f   Set the output container format: 'mp4' (default) or 'mkv'\n"
 								 "\t--verbose           -v   Display debug information while running\n"
 								 "\t--browser-cookies   -bc  Use cookies from the browser placed in 'firefox_profile' or 'chrome_profile'\n"
 								 "\t--rate              -r   Set the ammount of time in milliseconds between getting episodes\n"
@@ -404,7 +417,7 @@ int main(int argc, char** argv) {
 		}
 		dropout_dl::series series(options.url, options.session_cookie, options.download_captions, options.download_captions_only, options.rate_limit);
 
-		series.download(options.quality, options.output_directory);
+		series.download(options.quality, options.output_directory, options.container_format);
 	}
 	else if (options.is_season) {
 		if (options.verbose) {
@@ -412,7 +425,7 @@ int main(int argc, char** argv) {
 		}
 		dropout_dl::season season = dropout_dl::series::get_season(options.url, options.session_cookie, options.download_captions, options.download_captions_only, options.rate_limit);
 
-		season.download(options.quality, options.output_directory + "/" + season.series_name);
+		season.download(options.quality, options.output_directory + "/" + season.series_name, options.container_format);
 	}
 	else if (options.is_episode) {
 		if (options.verbose) {
@@ -431,7 +444,7 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		ep.download(options.quality, options.output_directory, options.filename);
+		ep.download(options.quality, options.output_directory, options.filename, options.container_format);
 	}
 	else {
 		std::cerr << "ERROR: Could not determine parsing type\n";

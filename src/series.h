@@ -69,7 +69,7 @@ namespace dropout_dl {
 			 *
 			 * Downloads the series into the <b>base</b> directory with the format <i>\<base\>/\<series name\>/\<season name\>/\<episode\></i>
 			 */
-		   void download(const std::string& quality, const std::string& base = ".");
+		   void download(const std::string& quality, const std::string& base = ".", const std::string& container_format = "mp4");
 
 		   /**
 			*

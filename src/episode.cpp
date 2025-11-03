@@ -363,7 +363,7 @@ namespace dropout_dl {
 	}
 
 
-	void episode::download_quality(const std::string& quality, const std::string& base_directory, const std::string& filename, bool lowest_audio_quality) {
+	void episode::download_quality(const std::string& quality, const std::string& base_directory, const std::string& filename, bool lowest_audio_quality, const std::string& container_format) {
 		if (!this->is_from_cdn) {
 			std::cerr << "EPISODE ERROR: Episode does not use CDN. Please report this issue on GitHub with the download url used.\n";
 			return;
@@ -388,7 +388,7 @@ namespace dropout_dl {
 			std::cout << YELLOW << "File already exists: " << filepath << RESET << '\n';
 			return;
 		}
-		if (!check_existing(quality,filepath + ".mp4") && !this->download_captions_only) {
+		if (!check_existing(quality,filepath + "." + container_format) && !this->download_captions_only) {
 			int video_quality_index = get_video_quality_index(quality);
 			std::string tmp;
 			if (this->verbose) {
@@ -458,7 +458,7 @@ namespace dropout_dl {
 		if (!this->captions_url.empty()) {
 			ffmpeg_cmd += " -i '" + filepath + ".vtt' -metadata:s:s:0 language=eng";
 		}
-		ffmpeg_cmd += " -c copy '" + filepath + ".mp4'";
+		ffmpeg_cmd += " -c copy '" + filepath + "." + container_format + "'";
 		if (!this->verbose) {
 			ffmpeg_cmd += " > /dev/null";
 		}
@@ -479,7 +479,7 @@ namespace dropout_dl {
 	}
 
 
-	void episode::download(const std::string& quality, const std::string& series_directory, std::string filename) {
+	void episode::download(const std::string& quality, const std::string& series_directory, std::string filename, const std::string& container_format) {
 		if (filename.empty()) {
 			std::string prefix;
 			if (this->series != "") {
@@ -505,7 +505,7 @@ namespace dropout_dl {
 
 		if (quality == "all") {
 			for (const auto &possible_video_quality: this->video_qualities) {
-				this->download_quality(possible_video_quality, series_directory + possible_video_quality, filename);
+				this->download_quality(possible_video_quality, series_directory + possible_video_quality, filename, false, container_format);
 			}
 		}
 		else if (quality == "highest") {
@@ -519,7 +519,7 @@ namespace dropout_dl {
 					highest_quality = possible_quality;
 				}
 			}
-			this->download_quality(highest_quality, series_directory, filename);
+			this->download_quality(highest_quality, series_directory, filename, false, container_format);
 		}
 		else if (quality == "lowest") {
 			std::string lowest_quality;
@@ -532,16 +532,16 @@ namespace dropout_dl {
 					lowest_quality = possible_quality;
 				}
 			}
-			this->download_quality(lowest_quality, series_directory, filename, true);
+			this->download_quality(lowest_quality, series_directory, filename, true, container_format);
 		}
 		else {
-			this->download_quality(quality, series_directory, filename);
+			this->download_quality(quality, series_directory, filename, false, container_format);
 		}
 	}
 
 	/// TODO: Reimplement size checking. I.E. replace an existing file if the size is not the same
 	bool episode::check_existing(const std::string &quality, const std::string& filename){
-		std::filesystem::path file_path = filename + ".mp4";
+		std::filesystem::path file_path = filename;
 		if (std::filesystem::exists(file_path)) {
 			return true;
 		}

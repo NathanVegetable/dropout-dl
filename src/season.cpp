@@ -97,7 +97,7 @@ namespace dropout_dl {
 		return std::stoi(number);
 	}
 
-	void season::download(const std::string &quality, const std::string &series_directory) {
+	void season::download(const std::string &quality, const std::string &series_directory, const std::string& container_format) {
 		if (!std::filesystem::is_directory(series_directory)) {
 			std::filesystem::create_directories(series_directory);
 			std::cout << "Creating series directory" << '\n';
@@ -106,7 +106,7 @@ namespace dropout_dl {
 		std::string dir = series_directory + "/" + this->name;
 
 		for (auto& ep : episodes) {
-			ep.download(quality, dir);
+			ep.download(quality, dir, "", container_format);
 		}
 	}
 } // dropout_dl
