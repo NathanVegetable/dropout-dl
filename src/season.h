@@ -25,8 +25,8 @@ namespace dropout_dl {
 			std::string url;
 			/// The season page data
 			std::string page_data;
-			/// The list of all the episodes in the season
-			std::vector<episode> episodes;
+			/// The list of all episode URLs in the season
+			std::vector<std::string> episode_urls;
 			/// Whether or not to download captions
 			bool download_captions;
 			/// Whether to skip the video and only download captions
@@ -34,26 +34,13 @@ namespace dropout_dl {
 			/// Ammount of time between downloading episodes
 			uint32_t rate_limit;
 
-			episode get_episode(const std::string& html_data, int& start_point, const cookie& session_cookie);
-
-
 			/**
 			 *
-			 * @param session_cookie - The cookie used to authenticate
-			 * @param page_data - the data of the season page gotten from curl
-			 * @param episodes - the vector of episodes that will be appended to
-			 */
-			void add_episodes_to_vector(const cookie& session_cookie, const std::string& page_data, std::vector<episode>& episodes);
-
-			/**
+			 * @return A vector of all episode URLs in the season
 			 *
-			 * @param html_data - The season page data
-			 * @param session_cookie - The cookie used to authenticate
-			 * @return A vector of all episodes in the season
-			 *
-			 * Gets all the episodes of the season and returns in a vector
+			 * Gets all the episode URLs from the season page
 			 */
-			std::vector<episode> get_episodes(const cookie& session_cookie);
+			std::vector<std::string> get_episode_urls();
 
 			/**
 			 *
@@ -63,15 +50,6 @@ namespace dropout_dl {
 			 * Gets the canonical number of the season for the url. This is sometimes different from the displayed number because of special seasons.
 			 */
 			 static int get_season_number(const std::string& url);
-
-			/**
-			 *
-			 * @param quality - The quality of the videos
-			 * @param series_directory - The directory of the series
-			 *
-			 * Downloads all the episodes of the season. Appends the season to the series directory
-			 */
-			void download(const std::string& quality, const std::string& series_directory, const std::string& container_format = "mp4");
 
 			/**
 			 *
@@ -92,7 +70,7 @@ namespace dropout_dl {
 				this->series_name = series_name;
 				std::cout << series_name << ": " << name << ": " << "\n";
 				this->page_data = get_generic_page(url);
-				this->episodes = get_episodes(session_cookie);
+				this->episode_urls = get_episode_urls();
 			}
 	};
 

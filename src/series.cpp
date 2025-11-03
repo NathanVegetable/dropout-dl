@@ -20,7 +20,7 @@ namespace dropout_dl {
 							if (substr_is(html_data, j + l, close_a)) {
 								// l is the distance from the '>' to '</h1>'
 								// We want to extract from j+1 (after '>') to j+l (before '</h1>')
-								if (l > 0) {
+								if (l > 1) {
 									return format_name_string(html_data.substr(j + 1, l - 1));
 								}
 								return "ERROR";
@@ -63,11 +63,11 @@ namespace dropout_dl {
 			}
 			if (seasons_dropdown) {
 				if (substr_is(this->page_data, i, value)) {
-					i += value.size() + 1;
-					// Bounds check after increment
-					if (i >= this->page_data.size()) {
+					// Bounds check before increment
+					if (i + value.size() + 1 >= this->page_data.size()) {
 						break;
 					}
+					i += value.size() + 1;
 					for (int j = 0; j + i < this->page_data.size(); j++) {
 						if (this->page_data[i + j] == '"') {
 							season_url = this->page_data.substr(i, j);
@@ -77,11 +77,11 @@ namespace dropout_dl {
 					}
 				}
 				else if (!season_url.empty() && substr_is(this->page_data, i, close_tag)) {
-					i += close_tag.size() + 1;
-					// Bounds check after increment
-					if (i >= this->page_data.size()) {
+					// Bounds check before increment
+					if (i + close_tag.size() + 1 >= this->page_data.size()) {
 						break;
 					}
+					i += close_tag.size() + 1;
 					for (int j = 0; i + j < this->page_data.size(); j++) {
 						if (this->page_data[i + j] == '\n') {
 							season_name = this->page_data.substr(i, j);
@@ -142,11 +142,11 @@ namespace dropout_dl {
 			}
 			if (seasons_dropdown) {
 				if (substr_is(html_data, i, value)) {
-					i += value.size() + 1;
-					// Bounds check after increment
-					if (i >= html_data.size()) {
+					// Bounds check before increment
+					if (i + value.size() + 1 >= html_data.size()) {
 						break;
 					}
+					i += value.size() + 1;
 					for (int j = 0; j + i < html_data.size(); j++) {
 						if (html_data[i + j] == '"') {
 							season_url = html_data.substr(i, j);
@@ -159,11 +159,11 @@ namespace dropout_dl {
 					selected = true;
 				}
 				else if (!season_url.empty() && substr_is(html_data, i, close_tag)) {
-					i += close_tag.size() + 1;
-					// Bounds check after increment
-					if (i >= html_data.size()) {
+					// Bounds check before increment
+					if (i + close_tag.size() + 1 >= html_data.size()) {
 						break;
 					}
+					i += close_tag.size() + 1;
 					for (int j = 0; i + j < html_data.size(); j++) {
 						if (html_data[i + j] == '\n') {
 							if (selected) {
@@ -193,17 +193,6 @@ namespace dropout_dl {
 
 		std::cerr << "SEASON PARSE ERROR: No selected season found\n";
 		exit(9);
-	}
-
-	void series::download(const std::string &quality, const std::string& base, const std::string& container_format) {
-		if (!std::filesystem::is_directory(base + "/" + series_directory)) {
-			std::filesystem::create_directories(base + "/" + series_directory);
-			std::cout << "Creating series directory" << '\n';
-		}
-
-		for (auto& season : seasons) {
-			season.download(quality, base + "/" + series_directory, container_format);
-		}
 	}
 
 } // dropout_dl

@@ -26,6 +26,7 @@ namespace dropout_dl {
 		bool download_captions = false;
         bool download_captions_only = false;
 		bool keep_segment_files = false;
+		bool list_urls = false;
 		uint32_t rate_limit = 2000; // rate limit in ms
 		std::string quality;
 		std::string filename;
@@ -150,6 +151,9 @@ namespace dropout_dl {
                 else if (arg == "captions-only" || arg == "co") {
 					download_captions_only = true;
 				}
+				else if (arg == "list-urls" || arg == "l") {
+					list_urls = true;
+				}
 				//// TODO: Add support for keeping m4a and m4s files
 				else if (arg == "help" || arg == "h") {
 					std::cout << "Usage: dropout-dl [OPTIONS] <url> [OPTIONS]\n"
@@ -173,7 +177,8 @@ namespace dropout_dl {
 								 "\t--season            -s   Interpret the url as a link to a season and download all episodes from all seasons\n"
 								 "\t--episode           -e   Interpret the url as a link to a single episode\n"
 								 "\t--captions          -c   Download the captions along with the episode. Overridden by --captions-only if set.\n"
-                                 "\t--captions-only     -co  Download the captions only, without the episode\n";
+                                 "\t--captions-only     -co  Download the captions only, without the episode\n"
+								 "\t--list-urls         -l   List all episode URLs that would be downloaded without downloading\n";
 
 					exit(0);
 				}
@@ -411,43 +416,124 @@ int main(int argc, char** argv) {
 		options.session_cookie = dropout_dl::cookie("_session", session);
 	}
 
+	// Step 1: Collect all episodes we need to download into a single vector
+	std::vector<dropout_dl::episode> episodes_to_download;
+	std::string output_directory = options.output_directory;
+
 	if (options.is_series) {
 		if (options.verbose) {
-			std::cout << "Getting series\n";
+			std::cout << "Getting series episodes\n";
 		}
-		dropout_dl::series series(options.url, options.session_cookie, options.download_captions, options.download_captions_only, options.rate_limit);
 
-		series.download(options.quality, options.output_directory, options.container_format);
+		// Extract series name from URL
+		std::string series_name = "";
+		size_t last_slash = options.url.find_last_of('/');
+		if (last_slash != std::string::npos) {
+			series_name = options.url.substr(last_slash + 1);
+		}
+		output_directory = options.output_directory + "/" + series_name;
+
+		// Try seasons sequentially until we hit a 404
+		for (int season_num = 1; season_num <= 20; season_num++) {
+			std::string season_url = options.url + "/season:" + std::to_string(season_num);
+
+			if (options.verbose) {
+				std::cout << "Checking season " << season_num << ": " << season_url << '\n';
+			}
+
+			// Check if season exists
+			long status_code = -1;
+			std::string page_data = dropout_dl::get_generic_page(season_url, "", &status_code);
+
+			if (status_code != 200) {
+				if (options.verbose) {
+					std::cout << "Season " << season_num << " not found, stopping\n";
+				}
+				break;
+			}
+
+			// Create season object to extract episode URLs (constructor populates episode_urls)
+			dropout_dl::season season(season_url, "", options.session_cookie, series_name, options.download_captions, options.download_captions_only, options.rate_limit);
+
+			// Create episode objects from URLs and add to download list
+			for (const auto& episode_url : season.episode_urls) {
+				dropout_dl::episode ep(episode_url, options.session_cookie, options.verbose, options.download_captions, options.download_captions_only);
+				episodes_to_download.push_back(ep);
+			}
+		}
 	}
 	else if (options.is_season) {
 		if (options.verbose) {
-			std::cout << "Getting season\n";
+			std::cout << "Getting season episodes\n";
 		}
-		dropout_dl::season season = dropout_dl::series::get_season(options.url, options.session_cookie, options.download_captions, options.download_captions_only, options.rate_limit);
 
-		season.download(options.quality, options.output_directory + "/" + season.series_name, options.container_format);
+		// Extract series name from URL
+		std::string series_name = "";
+		size_t last_slash = options.url.find_last_of('/');
+		if (last_slash != std::string::npos && last_slash > 0) {
+			size_t second_last_slash = options.url.find_last_of('/', last_slash - 1);
+			if (second_last_slash != std::string::npos) {
+				series_name = options.url.substr(second_last_slash + 1, last_slash - second_last_slash - 1);
+			}
+		}
+		output_directory = options.output_directory + "/" + series_name;
+
+		// Create season object to extract episode URLs (constructor populates episode_urls)
+		dropout_dl::season season(options.url, "", options.session_cookie, series_name, options.download_captions, options.download_captions_only, options.rate_limit);
+
+		// Create episode objects from URLs and add to download list
+		for (const auto& episode_url : season.episode_urls) {
+			dropout_dl::episode ep(episode_url, options.session_cookie, options.verbose, options.download_captions, options.download_captions_only);
+			episodes_to_download.push_back(ep);
+		}
 	}
 	else if (options.is_episode) {
 		if (options.verbose) {
-			std::cout << "Getting episode\n";
+			std::cout << "Getting single episode\n";
 		}
+
+		// Create the episode and add it to our download list
 		dropout_dl::episode ep(options.url, options.session_cookie, options.verbose, options.download_captions, options.download_captions_only);
-
-		if (options.verbose) {
-			std::cout << "filename: " << options.filename << '\n';
-		}
-
-		if (!std::filesystem::is_directory(options.output_directory)) {
-			std::filesystem::create_directories(options.output_directory);
-			if (options.verbose) {
-				std::cout << "Creating series directory" << '\n';
-			}
-		}
-
-		ep.download(options.quality, options.output_directory, options.filename, options.container_format);
+		episodes_to_download.push_back(ep);
 	}
 	else {
 		std::cerr << "ERROR: Could not determine parsing type\n";
+		return 1;
+	}
+
+	// Step 2: Download all episodes using the single download code path
+	if (episodes_to_download.empty()) {
+		std::cout << "No episodes found to download\n";
+		return 0;
+	}
+
+	std::cout << "Found " << episodes_to_download.size() << " episode(s) to download\n";
+
+	// If list_urls is enabled, just print URLs and exit
+	if (options.list_urls) {
+		std::cout << "\nEpisode URLs:\n";
+		for (const auto& ep : episodes_to_download) {
+			std::cout << ep.episode_url << '\n';
+		}
+		return 0;
+	}
+
+	// Create output directory if needed
+	if (!std::filesystem::is_directory(output_directory)) {
+		std::filesystem::create_directories(output_directory);
+		if (options.verbose) {
+			std::cout << "Created output directory: " << output_directory << '\n';
+		}
+	}
+
+	// Download each episode
+	for (auto& ep : episodes_to_download) {
+		ep.download(options.quality, output_directory, options.filename, options.container_format);
+
+		// Rate limit between episodes
+		if (&ep != &episodes_to_download.back()) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(options.rate_limit));
+		}
 	}
 
 

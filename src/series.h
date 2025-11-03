@@ -62,15 +62,6 @@ namespace dropout_dl {
 			 */
 			static season get_season(const std::string& url, const cookie& session_cookie, bool download_captions, bool download_captions_only, uint32_t rate_limit);
 
-			/**
-			 *
-			 * @param quality - The quality of the video
-			 * @param base - The base directory to download to
-			 *
-			 * Downloads the series into the <b>base</b> directory with the format <i>\<base\>/\<series name\>/\<season name\>/\<episode\></i>
-			 */
-		   void download(const std::string& quality, const std::string& base = ".", const std::string& container_format = "mp4");
-
 		   /**
 			*
 			* @param url - The link to the series page
@@ -98,3 +89,4 @@ namespace dropout_dl {
 	};
 
 } // dropout_dl
+

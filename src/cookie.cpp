@@ -116,6 +116,11 @@ namespace dropout_dl {
 	void cookie::url_decode() {
 		std::string out;
 
+		// Bounds check to prevent unsigned underflow if value is less than 3 chars
+		if (this->value.size() < 3) {
+			return;
+		}
+
 		for (int i = 0; i < this->value.size() - 3; i++) {
 			if (substr_is(this->value, i, "%3D")) {
 				out += "=";

@@ -1,19 +1,49 @@
 # Testing dropout-dl
 
-## Important Notes
+## Architecture Overview
 
-### Bugs Fixed in This Session
-1. **Segmentation Fault (Issue #45)** - Fixed by correcting multiple utility functions
-   - `substr_is()` in util.cpp had incorrect logic
-   - `remove_leading_and_following_whitespace()` lacked bounds checking
-   - `get_series_name()` could create negative substring lengths
-   - `getenv("HOME")` returned nullptr in Docker environments
-   - Several other string manipulation safety issues
+The codebase follows a clean, single-responsibility architecture with a DRY (Don't Repeat Yourself) principle:
 
-2. **MKV Format Support (Issue #34)** - Added `--format` flag supporting both mp4 and mkv containers
+### Code Flow
+```
+--episode → episode URL → download
+--season  → season.episode_urls → download each URL
+--series  → series.get_seasons() → season.episode_urls → download each URL
+```
 
-### Debug Output
-The code currently contains extensive DEBUG print statements added during bug fixing. These should be removed before final commit. They are helpful for diagnosing issues but not needed in production.
+### Responsibilities
+- **series**: Finds all season URLs for a show
+- **season**: Extracts episode URLs from a season page
+- **episode**: Downloads a single episode
+- **main**: Orchestrates the flow and handles all downloading
+
+All three modes (`--episode`, `--season`, `--series`) converge to a single download loop in main.cpp that iterates through episode URLs.
+
+## Quick Testing with --list-urls
+
+For fast testing without waiting for downloads, use the `--list-urls` (or `-l`) flag to see what episodes would be downloaded:
+
+```bash
+# Test a series with multiple seasons (Dimension 20: Dungeons and Drag Queens has 2 seasons)
+docker run --rm -v "$(pwd)/login:/app/login" dropout-dl:latest \
+  --list-urls --series \
+  https://watch.dropout.tv/dimension-20-dungeons-and-drag-queens
+
+# Test a single season
+docker run --rm -v "$(pwd)/login:/app/login" dropout-dl:latest \
+  --list-urls --season \
+  https://watch.dropout.tv/game-changer/season:1
+
+# Test a single episode
+docker run --rm -v "$(pwd)/login:/app/login" dropout-dl:latest \
+  --list-urls --episode \
+  https://watch.dropout.tv/game-changer/season:1/videos/lie-detector-1
+```
+
+This allows you to verify that:
+- Series correctly finds all seasons
+- Seasons correctly extract all episode URLs
+- The scraping logic is working without waiting for downloads
 
 ## Docker Testing on Windows (Git Bash)
 
@@ -31,17 +61,15 @@ Use `env MSYS_NO_PATHCONV=1` before the docker command to disable automatic path
 
 ```bash
 env MSYS_NO_PATHCONV=1 docker run --rm \
-  -v "C:\Users\Nathan\source\repos\dropout-dl\login:/app/login" \
-  -v "C:\Users\Nathan\source\repos\dropout-dl\test-output:/output" \
+  -v "$(pwd)/login:/app/login" \
+  -v "$(pwd)/test-output:/output" \
   dropout-dl:latest \
   --output-directory /output \
   --format mkv \
   --season \
   --quality lowest \
-  https://watch.dropout.tv/game-changer
+  https://watch.dropout.tv/game-changer/season:1
 ```
-
-**Verified:** This approach successfully creates MKV files in the test-output directory.
 
 **Note:** This issue only affects Docker testing on Windows with Git Bash. Normal users running the compiled binary directly will never encounter this issue, as they would use native paths for their operating system:
 - Linux/Mac: `./dropout-dl -d ~/videos ...`
@@ -51,7 +79,7 @@ env MSYS_NO_PATHCONV=1 docker run --rm \
 
 Build the Docker image:
 ```bash
-docker build -t dropout-dl:test .
+docker build -t dropout-dl:latest .
 ```
 
 Test with a single episode:
@@ -59,7 +87,7 @@ Test with a single episode:
 env MSYS_NO_PATHCONV=1 docker run --rm \
   -v "$(pwd)/login:/app/login" \
   -v "$(pwd)/test-output:/output" \
-  dropout-dl:test \
+  dropout-dl:latest \
   --output-directory /output \
   --format mkv \
   --episode \
@@ -71,10 +99,31 @@ Test with a full season:
 env MSYS_NO_PATHCONV=1 docker run --rm \
   -v "$(pwd)/login:/app/login" \
   -v "$(pwd)/test-output:/output" \
-  dropout-dl:test \
+  dropout-dl:latest \
   --output-directory /output \
   --format mkv \
   --season \
   --quality lowest \
   https://watch.dropout.tv/game-changer/season:1
 ```
+
+Test with an entire series:
+```bash
+env MSYS_NO_PATHCONV=1 docker run --rm \
+  -v "$(pwd)/login:/app/login" \
+  -v "$(pwd)/test-output:/output" \
+  dropout-dl:latest \
+  --output-directory /output \
+  --format mkv \
+  --series \
+  --quality lowest \
+  https://watch.dropout.tv/game-changer
+```
+
+## Format Support
+
+The `--format` flag supports both:
+- **mp4** (default): H.264 video + AAC audio in MP4 container
+- **mkv**: H.264 video + AAC audio in Matroska container
+
+Both formats contain the same video/audio streams, only the container differs.

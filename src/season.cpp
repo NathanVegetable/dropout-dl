@@ -5,78 +5,50 @@
 #include "season.h"
 
 namespace dropout_dl {
-	episode season::get_episode(const std::string& html_data, int& start_point, const cookie& session_cookie) {
-		int link_start = 0;
-		for (int i = start_point; i > 0; i--) {
-			if (substr_is(html_data, i, "<a")) {
-				link_start = i;
-				break;
-			}
-			else if (substr_is(html_data, i, "<")) {
-				// Invalid episode place. Return empty value.
-				return {};
-			}
-		}
-		for (int i = link_start; i < html_data.size(); i++) {
-			if (substr_is(html_data, i, "href=\"")) {
-				i += 6;
-				for (int j = 0; j + i < html_data.size(); j++) {
-					if (html_data[i + j] == '"') {
-						start_point += 15;
-						std::string url = html_data.substr(i, j);
-						std::string episode_text = get_substring_in(html_data, R"(<span class='media-identifier media-episode'>)", "</span>", i);
-						int episode_number = -1;
-						if (!episode_text.empty()) {
-							episode_number = get_int_in_string(episode_text);
+	std::vector<std::string> season::get_episode_urls() {
+		std::vector<std::string> urls;
+		const std::string pattern = R"(class="browse-item-link" data-track-event="site_video")";
+
+		// Helper lambda to extract URLs from page data
+		auto extract_urls_from_page = [&](const std::string& page_data) {
+			for (size_t i = 0; i < page_data.size(); i++) {
+				if (substr_is(page_data, i, pattern)) {
+					// Search backwards for the href attribute
+					for (int j = i; j >= 0 && j > i - 200; j--) {
+						if (substr_is(page_data, j, "href=\"")) {
+							// Extract URL
+							size_t url_start = j + 6; // Skip 'href="'
+							size_t url_end = page_data.find('"', url_start);
+							if (url_end != std::string::npos) {
+								std::string url = page_data.substr(url_start, url_end - url_start);
+								urls.push_back(url);
+								break;
+							}
 						}
-						return episode(url, session_cookie, this->series_name, this->name, episode_number, this->season_number, false, this->download_captions, this->download_captions_only);
 					}
 				}
 			}
-			std::this_thread::sleep_for(std::chrono::milliseconds(rate_limit));
-		}
-		std::cerr << "SEASON PARSE ERROR: Error finding episode" << std::endl;
-		exit(8);
-	}
+		};
 
+		// Extract URLs from first page
+		extract_urls_from_page(this->page_data);
 
-	void season::add_episodes_to_vector(const cookie& session_cookie, const std::string& page_data, std::vector<episode>& episodes) {
-		const std::string site_video(R"(class="browse-item-link" data-track-event="site_video")");
-		for (int i = 0; i < page_data.size(); i++) {
-			if (substr_is(page_data, i, site_video)) {
-				episode e = get_episode(page_data, i, session_cookie);
-				if (e.episode_url.empty()) {
-					continue;
-				}
-				std::cout << '\t' << e.name << '\n';
-				episodes.push_back(e);
-			}
-		}
-	}
-
-	std::vector<episode> season::get_episodes(const cookie& session_cookie) {
-		std::vector<episode> out;
-		add_episodes_to_vector(session_cookie, this->page_data, out);
-		// Find episodes hidden behind "Show More". This is sort of a hack but it should be fine.
-		// What we do is get the page data for the next page (this is what the "show more" button does behind the scenes) and check if it exists.
-		// If it does get the episodes and check the next page, otherwise just return from what we got from the first page
+		// Handle pagination - check for additional pages
 		long status_code = -1;
 		int page_index = 2;
 		while (true) {
 			std::string next_page_url = this->url + "?page=" + std::to_string(page_index);
-
 			std::string next_page_data = get_generic_page(next_page_url, this->url, &status_code);
 
 			if (status_code != 200) {
 				break;
 			}
 
-			add_episodes_to_vector(session_cookie, next_page_data, out);
-
+			extract_urls_from_page(next_page_data);
 			page_index++;
 		}
 
-		return out;
+		return urls;
 	}
 
 	int season::get_season_number(const std::string& url) {
@@ -94,16 +66,4 @@ namespace dropout_dl {
 		return std::stoi(number);
 	}
 
-	void season::download(const std::string &quality, const std::string &series_directory, const std::string& container_format) {
-		if (!std::filesystem::is_directory(series_directory)) {
-			std::filesystem::create_directories(series_directory);
-			std::cout << "Creating series directory" << '\n';
-		}
-
-		std::string dir = series_directory + "/" + this->name;
-
-		for (auto& ep : episodes) {
-			ep.download(quality, dir, "", container_format);
-		}
-	}
 } // dropout_dl
