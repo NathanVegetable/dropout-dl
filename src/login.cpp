@@ -5,7 +5,8 @@ void dropout_dl::login::get_cookies(std::string& session, const std::string& log
 	std::string email;
 	std::string password;
 
-	const std::string home = getenv("HOME");
+	const char* home_env = getenv("HOME");
+	const std::string home = home_env ? home_env : "/tmp";
 	const std::string cache_directory = home + "/.cache/dropout-dl/";
 	const std::string cache_file_path = home + "/.cache/dropout-dl/token-cache";
 	std::fstream cache_file(cache_file_path);
