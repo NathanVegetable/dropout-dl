@@ -57,6 +57,15 @@ namespace dropout_dl {
 	/**
 	 *
 	 * @param str - A string
+	 * @return <b>str</b> with any html named entities replaced with their characters.
+	 *
+	 * E.G. &quot; would be replaced with "
+	 */
+	std::string replace_html_named_entities(const std::string& str);
+
+	/**
+	 *
+	 * @param str - A string
 	 * @return <b>str</b> with junk removed or replace
 	 *
 	 * Removed leading and following whitespace and replaces html character codes

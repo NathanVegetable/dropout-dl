@@ -92,7 +92,7 @@ namespace dropout_dl {
 
 		for (int i = 0; i < str.size(); i++) {
 			if (str[i] == '\\') {
-				i++;
+				continue; // Skip the backslash character entirely
 			}
 			out += str[i];
 		}
@@ -105,7 +105,7 @@ namespace dropout_dl {
 
 		for (int i = 0; i < str.size(); i++) {
 			if (str[i] == '\'') {
-				i++;
+				continue; // Skip the quote character entirely
 			}
 			out += str[i];
 		}
@@ -114,8 +114,18 @@ namespace dropout_dl {
 	}
 
 
+	std::string replace_html_named_entities(const std::string& str) {
+		std::string out = str;
+		replace_all(out, "&quot;", "\"");
+		replace_all(out, "&amp;", "&");
+		replace_all(out, "&lt;", "<");
+		replace_all(out, "&gt;", ">");
+		replace_all(out, "&apos;", "'");
+		return out;
+	}
+
 	std::string format_name_string(const std::string& str) {
-		return remove_quote_characters(remove_escaped_characters(replace_html_character_codes(remove_leading_and_following_whitespace(str))));
+		return remove_quote_characters(remove_escaped_characters(replace_html_named_entities(replace_html_character_codes(remove_leading_and_following_whitespace(str)))));
 	}
 
 	std::string format_filename(const std::string& str) {
