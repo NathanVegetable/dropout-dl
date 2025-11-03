@@ -64,6 +64,10 @@ namespace dropout_dl {
 			if (seasons_dropdown) {
 				if (substr_is(this->page_data, i, value)) {
 					i += value.size() + 1;
+					// Bounds check after increment
+					if (i >= this->page_data.size()) {
+						break;
+					}
 					for (int j = 0; j + i < this->page_data.size(); j++) {
 						if (this->page_data[i + j] == '"') {
 							season_url = this->page_data.substr(i, j);
@@ -74,6 +78,10 @@ namespace dropout_dl {
 				}
 				else if (!season_url.empty() && substr_is(this->page_data, i, close_tag)) {
 					i += close_tag.size() + 1;
+					// Bounds check after increment
+					if (i >= this->page_data.size()) {
+						break;
+					}
 					for (int j = 0; i + j < this->page_data.size(); j++) {
 						if (this->page_data[i + j] == '\n') {
 							season_name = this->page_data.substr(i, j);
@@ -137,6 +145,10 @@ namespace dropout_dl {
 			if (seasons_dropdown) {
 				if (substr_is(html_data, i, value)) {
 					i += value.size() + 1;
+					// Bounds check after increment
+					if (i >= html_data.size()) {
+						break;
+					}
 					for (int j = 0; j + i < html_data.size(); j++) {
 						if (html_data[i + j] == '"') {
 							season_url = html_data.substr(i, j);
@@ -150,6 +162,10 @@ namespace dropout_dl {
 				}
 				else if (!season_url.empty() && substr_is(html_data, i, close_tag)) {
 					i += close_tag.size() + 1;
+					// Bounds check after increment
+					if (i >= html_data.size()) {
+						break;
+					}
 					for (int j = 0; i + j < html_data.size(); j++) {
 						if (html_data[i + j] == '\n') {
 							if (selected) {
