@@ -2,6 +2,7 @@
 // Created by moss on 9/28/22.
 //
 #include "episode.h"
+#include "season.h"
 #include <regex>
 
 namespace dropout_dl {
@@ -47,6 +48,7 @@ namespace dropout_dl {
 	}
 
 	int episode::get_episode_number(const std::string& page_data, int season_number) {
+		// Search for the pattern: Season X, Episode Y (on individual episode pages)
 		std::string open_string = "Season " + std::to_string(season_number) + ", Episode ";
 		std::string close_string = "\n";
 
@@ -479,33 +481,86 @@ namespace dropout_dl {
 	}
 
 
-	void episode::download(const std::string& quality, const std::string& series_directory, std::string filename, const std::string& container_format) {
-		if (filename.empty()) {
-			std::string prefix;
-			if (this->series != "") {
-				prefix = this->series + " - ";
+	std::string episode::get_filename(const std::string& container_format) const {
+		std::string filename;
+		std::string series_prefix = this->series.empty() ? "" : this->series + " - ";
+
+		if (this->episode_number != 0) {
+			if (this->episode_number == -1) {
+				/// Episode file without season or episode number in case of special episode
+				filename = series_prefix + this->name;
 			}
-			if (this->episode_number != 0) {
-				if (this->episode_number == -1) {
-					/// Episode file without season or episode number in case of special episode
-					filename = prefix + this->name;
-				}
-				else if (this->season_number != 0) {
-					filename = prefix + "S" + ((this->season_number < 10) ? "0" : "") + std::to_string(this->season_number) + "E" + ((this->episode_number < 10) ? "0" : "") + std::to_string(this->episode_number) + " - " + this->name;
-				}
-				else {
-					filename = prefix + this->season + " Episode " + std::to_string(this->episode_number) + " - " + this->name;
-				}
+			else if (this->season_number != 0) {
+				// Plex naming convention: Series Name - s01e01 - Episode Name
+				filename = series_prefix +
+				          std::string("s") + ((this->season_number < 10) ? "0" : "") + std::to_string(this->season_number) +
+				          "e" + ((this->episode_number < 10) ? "0" : "") + std::to_string(this->episode_number) +
+				          " - " + this->name;
 			}
 			else {
-				filename = prefix + this->season + " - " + this->name;
+				filename = series_prefix + this->season + " Episode " + std::to_string(this->episode_number) + " - " + this->name;
 			}
-			filename = format_filename(filename);
+		}
+		else {
+			filename = series_prefix + this->season + " - " + this->name;
+		}
+
+		filename = format_filename(filename);
+		filename += "." + container_format;
+
+		return filename;
+	}
+
+	std::string episode::get_download_directory(const std::string& base_directory) const {
+		std::string download_directory = base_directory;
+		if (this->season_number > 0) {
+			download_directory += std::string("/Season ") + ((this->season_number < 10) ? "0" : "") + std::to_string(this->season_number);
+		}
+		return download_directory;
+	}
+
+	std::string episode::get_download_path(const std::string& base_directory, const std::string& container_format) const {
+		std::string relative_path = "";
+
+		// Add season subdirectory if present
+		if (this->season_number > 0) {
+			relative_path += "Season " + ((this->season_number < 10) ? std::string("0") : std::string("")) + std::to_string(this->season_number) + "/";
+		}
+
+		// Add filename
+		std::string series_prefix = this->series.empty() ? "" : this->series + " - ";
+		std::string filename;
+
+		if (this->episode_number > 0 && this->season_number > 0) {
+			filename = series_prefix +
+			          std::string("s") + ((this->season_number < 10) ? "0" : "") + std::to_string(this->season_number) +
+			          "e" + ((this->episode_number < 10) ? "0" : "") + std::to_string(this->episode_number) +
+			          " - " + this->name;
+		} else {
+			filename = series_prefix + this->name;
+		}
+
+		relative_path += filename + "." + container_format;
+
+		return relative_path;
+	}
+
+	void episode::download(const std::string& quality, const std::string& series_directory, std::string filename, const std::string& container_format) {
+		// Build the full path with Season subdirectory (Plex format: "Series Name/Season 01/")
+		std::string download_directory = get_download_directory(series_directory);
+
+		if (filename.empty()) {
+			filename = get_filename(container_format);
+			// Remove extension since it gets added later in download_quality
+			size_t last_dot = filename.find_last_of('.');
+			if (last_dot != std::string::npos) {
+				filename = filename.substr(0, last_dot);
+			}
 		}
 
 		if (quality == "all") {
 			for (const auto &possible_video_quality: this->video_qualities) {
-				this->download_quality(possible_video_quality, series_directory + possible_video_quality, filename, false, container_format);
+				this->download_quality(possible_video_quality, download_directory + "/" + possible_video_quality, filename, false, container_format);
 			}
 		}
 		else if (quality == "highest") {
@@ -519,7 +574,7 @@ namespace dropout_dl {
 					highest_quality = possible_quality;
 				}
 			}
-			this->download_quality(highest_quality, series_directory, filename, false, container_format);
+			this->download_quality(highest_quality, download_directory, filename, false, container_format);
 		}
 		else if (quality == "lowest") {
 			std::string lowest_quality;
@@ -532,10 +587,10 @@ namespace dropout_dl {
 					lowest_quality = possible_quality;
 				}
 			}
-			this->download_quality(lowest_quality, series_directory, filename, true, container_format);
+			this->download_quality(lowest_quality, download_directory, filename, true, container_format);
 		}
 		else {
-			this->download_quality(quality, series_directory, filename, false, container_format);
+			this->download_quality(quality, download_directory, filename, false, container_format);
 		}
 	}
 

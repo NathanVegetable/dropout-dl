@@ -17,6 +17,9 @@
 #include "util.h"
 
 namespace dropout_dl {
+	// Forward declaration for season class
+	class season;
+
 	/**
 	 * A class for handling all episode information. This class is wildly overkill if downloading an entire series as it gather the series name and season for every episode. This is not an issue here because all the information it gathers it already available while gathering the video url and the majority of the time taken while parsing an episode is from downloading the three required webpages.
 	 */
@@ -256,7 +259,30 @@ namespace dropout_dl {
 		 */
 		void download(const std::string& quality, const std::string& series_directory, std::string filename = "", const std::string& container_format = "mp4");
 
+		/**
+		 * @param container_format - The container format to use for the filename extension
+		 * @return The filename that will be used for this episode
+		 *
+		 * Builds the filename using the same logic as download() - for use by --list-urls and other pre-download operations
+		 */
+		std::string get_filename(const std::string& container_format = "mp4") const;
 
+		/**
+		 * @param base_directory - The base output directory
+		 * @return The full directory path where this episode will be downloaded
+		 *
+		 * Builds the directory path (base + series + season) using the same logic as download()
+		 */
+		std::string get_download_directory(const std::string& base_directory) const;
+
+		/**
+		 * @param base_directory - The base output directory
+		 * @param container_format - The container format to use for the filename extension
+		 * @return The full relative path (directory + filename) for this episode
+		 *
+		 * Combines get_download_directory() and get_filename() for convenience
+		 */
+		std::string get_download_path(const std::string& base_directory, const std::string& container_format = "mp4") const;
 
 		/**
 		 *
@@ -272,68 +298,131 @@ namespace dropout_dl {
 		 * This constructor initializes all the object data.
 		 */
 		episode(const std::string& episode_url, cookie session_cookie, const std::string& series, const std::string& season, int episode_number, int season_number, bool verbose = false, bool download_captions = false, bool download_captions_only = false) {
+			if (verbose) {
+				std::cout << "Episode constructor: Starting for URL: " << episode_url << '\n';
+			}
 			this->episode_url = episode_url;
 			this->verbose = verbose;
+			if (verbose) {
+				std::cout << "Episode constructor: Fetching page data...\n";
+			}
 			episode_data = get_episode_page(episode_url, session_cookie.value);
 			if (verbose) {
-				std::cout << "Got page data\n";
+				std::cout << "Episode constructor: Got page data (" << episode_data.size() << " bytes)\n";
+			}
+			if (verbose) {
+				std::cout << "Episode constructor: Extracting metadata...\n";
 			}
 			metadata = get_meta_data_json(episode_data);
 			if (verbose) {
-				std::cout << "Got episode metadata: " << metadata << '\n';
+				std::cout << "Episode constructor: Got episode metadata (not displaying full JSON)\n";
+			}
+			if (verbose) {
+				std::cout << "Episode constructor: Extracting episode name...\n";
 			}
 			name = get_episode_name(metadata);
 			if (verbose) {
-				std::cout << "Got name: " << name << '\n';
+				std::cout << "Episode constructor: Got name: " << name << '\n';
 			}
 
 			if (name == "ERROR") {
 				std::cerr << "EPISODE ERROR: Invalid Episode URL\n";
 				exit(6);
 			}
+			if (verbose) {
+				std::cout << "Episode constructor: Setting this->series\n";
+			}
 			this->series = series;
 
-			this->series_directory = format_filename(this->series);
+			// Format the series name for the directory
+			this->series_directory = format_filename(series, verbose);
+			if (verbose) {
+				std::cout << "Episode constructor: Set series_directory to: " << this->series_directory << '\n';
+			}
 
 			this->season = season;
-			int episode_number_from_page = get_episode_number(episode_data, season_number);
-			if (episode_number_from_page != -1) {
-				this->episode_number = episode_number_from_page;
-			}
-			else {
+			// Use the passed episode number if provided (> 0), otherwise try to extract from page
+			if (episode_number > 0) {
 				this->episode_number = episode_number;
-			}
-			if (episode_number_from_page != episode_number) {
 				if (verbose) {
-					std::cout << "WARNING: episode number from season page (" << episode_number << ") and episode page (" << episode_number_from_page << ") do not match. Using " << this->episode_number << " if this is correct please ignore this warning\n";
+					std::cout << "Episode constructor: Using provided episode number: " << this->episode_number << " for season " << season_number << '\n';
+				}
+			} else {
+				// Try to extract from page data as fallback
+				if (verbose) {
+					std::cout << "Episode constructor: Attempting to extract episode number from page for season " << season_number << '\n';
+				}
+
+				this->episode_number = get_episode_number(episode_data, season_number);
+
+				if (this->episode_number == -1) {
+					// Fallback: Continue without episode number, will use simpler naming
+					if (verbose) {
+						std::cout << "Episode constructor: Could not extract episode number from page. Will use simplified naming.\n";
+						std::cout << "Episode constructor: Episode URL: " << episode_url << "\n";
+						std::cout << "Episode constructor: Season number: " << season_number << "\n";
+						std::cout << "Episode constructor: Expected pattern: Season " << season_number << ", Episode X\n";
+					}
+					// Keep episode_number as -1, download() will handle fallback naming
+				} else {
+					if (verbose) {
+						std::cout << "Episode constructor: Got episode number: " << this->episode_number << " for season " << season_number << '\n';
+					}
 				}
 			}
 
+			if (verbose) {
+				std::cout << "Episode constructor: Setting season_number to: " << season_number << '\n';
+			}
 			this->season_number = season_number;
+			if (verbose) {
+				std::cout << "Episode constructor: Extracting embed URL...\n";
+			}
 			this->embedded_url = get_embed_url(episode_data);
 			replace_all(this->embedded_url, "&amp;", "&");
 
 			if (verbose) {
-				std::cout << "Got embedded url: " << this->embedded_url << '\n';
+				std::cout << "Episode constructor: Got embedded url: " << this->embedded_url << '\n';
+			}
+			if (verbose) {
+				std::cout << "Episode constructor: Fetching embedded page...\n";
 			}
 			this->embedded_page_data = get_generic_page(this->embedded_url);
+			if (verbose) {
+				std::cout << "Episode constructor: Got embedded page data (" << this->embedded_page_data.size() << " bytes)\n";
+			}
 			if (this->embedded_page_data.find("you are not authorized") != std::string::npos) {
 				std::cerr << "ERROR: Could not access video. Try refreshing cookies.\n";
 				exit(6);
 			}
 
+			if (verbose) {
+				std::cout << "Episode constructor: Extracting config URL...\n";
+			}
 			this->config_url = get_config_url(this->embedded_page_data);
 
 			replace_all(this->config_url, "\\u0026", "&");
 
 			if (verbose) {
-				std::cout << "Got config url: " << this->config_url << '\n';
+				std::cout << "Episode constructor: Got config url: " << this->config_url << '\n';
 			}
 
+			if (verbose) {
+				std::cout << "Episode constructor: Fetching config data...\n";
+			}
 			this->config_data = get_generic_page(this->config_url);
+			if (verbose) {
+				std::cout << "Episode constructor: Got config data (" << this->config_data.size() << " bytes)\n";
+			}
 
+			if (verbose) {
+				std::cout << "Episode constructor: Parsing config JSON...\n";
+			}
 			try {
 				this->config_json = nlohmann::json::parse(config_data);
+				if (verbose) {
+					std::cout << "Episode constructor: Successfully parsed config JSON\n";
+				}
 			}
 			catch (nlohmann::detail::parse_error e) {
 				if (this->config_data == "error code: 1015") {
@@ -347,9 +436,12 @@ namespace dropout_dl {
 			}
 
 			if (download_captions || download_captions_only) {
+				if (verbose) {
+					std::cout << "Episode constructor: Getting captions URL...\n";
+				}
 				this->captions_url = get_captions_url();
 				if (verbose) {
-					std::cout << "Got caption url: " << this->captions_url << "\n";
+					std::cout << "Episode constructor: Got caption url: " << this->captions_url << "\n";
 				}
 			}
 			else {
@@ -358,7 +450,13 @@ namespace dropout_dl {
 
 			this->download_captions_only = download_captions_only;
 
+			if (verbose) {
+				std::cout << "Episode constructor: Getting qualities...\n";
+			}
 			this->get_qualities();
+			if (verbose) {
+				std::cout << "Episode constructor: Finished successfully\n";
+			}
 		}
 
 		/**

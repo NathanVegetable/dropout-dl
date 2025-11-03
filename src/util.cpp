@@ -145,7 +145,10 @@ namespace dropout_dl {
 		return remove_quote_characters(remove_escaped_characters(replace_html_named_entities(replace_html_character_codes(remove_leading_and_following_whitespace(str)))));
 	}
 
-	std::string format_filename(const std::string& str) {
+	std::string format_filename(const std::string& str, bool verbose) {
+		if (verbose) {
+			std::cout << "format_filename: Processing string of length " << str.size() << "\n";
+		}
 		std::string out;
 
 		for (int i = 0; i < str.size(); i++) {
@@ -159,9 +162,15 @@ namespace dropout_dl {
 				case '\'':
 				case '(':
 				case ')':
+					if (verbose) {
+						std::cout << "format_filename: Ignoring character '" << c << "' at position " << i << "\n";
+					}
 					continue;
 				//Characters converted into dashes
 				case '/':
+					if (verbose) {
+						std::cout << "format_filename: Converting '/' to '-' at position " << i << "\n";
+					}
 					out += '-';
 					break;
 				default:
@@ -169,6 +178,9 @@ namespace dropout_dl {
 			}
 		}
 
+		if (verbose) {
+			std::cout << "format_filename: Returning formatted string of length " << out.size() << "\n";
+		}
 		return out;
 	}
 
@@ -373,7 +385,7 @@ namespace dropout_dl {
 		return std::stoi(string_number[0]);
     }
 	int get_int_in_string(const std::string& string) {
-		int temp;
+		int temp = 0;
 		return get_int_in_string(string,temp); // lol
 	}
 

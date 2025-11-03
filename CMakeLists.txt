@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.10)
 project(dropout-dl)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
-set(CMAKE_BUILD_TYPE Release)
 
 
 IF(DROPOUT_DL_BUILD_ALL)

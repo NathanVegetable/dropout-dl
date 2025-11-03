@@ -75,11 +75,12 @@ namespace dropout_dl {
 	/**
 	 *
 	 * @param str - A string
+	 * @param verbose - Whether to output verbose logging
 	 * @return <b>str</b> properly formatted to be a filename
 	 *
 	 * Removes non-alphanumeric characters and spaces
 	 */
-	std::string format_filename(const std::string& str);
+	std::string format_filename(const std::string& str, bool verbose = false);
 
 	#if defined(__WIN32__)
 	#include <windows.h>
