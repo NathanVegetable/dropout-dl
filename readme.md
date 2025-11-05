@@ -24,7 +24,7 @@
 
 **SUPPORT DROPOUT**: We strongly encourage you to [subscribe to Dropout](https://www.dropout.tv). They create amazing content and deserve your support. This tool exists solely for personal convenience (offline viewing, backups, Plex organization) for paying subscribers.
 
-**NO PIRACY**: Redistribution of downloaded content is illegal and explicitly discouraged. Do not share downloaded files. This is for your personal home viewing only.
+**NO PIRACY**: Redistribution of downloaded content is illegal and explicitly discouraged. Do not share downloaded files. This is for your personal home viewing only. *(I'm a README, not a cop)*
 
 ---
 
@@ -41,9 +41,12 @@ This fork adds several performance improvements, stability fixes, and new featur
 - **📦 MKV Container Format** - Support for outputting to Matroska (MKV) format via `--format mkv` flag
 - **🎬 Plex-Compatible Naming** - Follows Plex naming conventions for proper library detection
   - Format: `Series Name - S##E## - Episode Name.ext`
-  - Special episode support (S00Exx for specials)
+  - Special episode support (S00Exx for specials, including "Last Looks" and "Behind the Scenes" content)
 - **🔍 Preview Downloads** - `--list-urls` flag to see what would be downloaded without actually downloading
 - **🐛 Docker Debugging Support** - Build with `DEBUG_BUILD=1` for gdb integration and crash analysis
+- **💾 Atomic File Operations** - All files are downloaded to `.tmp` extensions and only renamed to final format upon successful completion
+  - Ensures interrupted downloads are easily identifiable and resumable
+  - Prevents partially downloaded files from appearing as complete
 
 ### Stability Improvements
 - Multiple memory safety fixes preventing segmentation faults
