@@ -665,6 +665,9 @@ namespace dropout_dl {
 		if (this->season_number > 0) {
 			download_directory += std::string("/Season ") + ((this->season_number < 10) ? "0" : "") + std::to_string(this->season_number);
 		}
+		else if (this->season_number == 0) {
+			download_directory += "/Specials";
+		}
 		return download_directory;
 	}
 
@@ -675,12 +678,15 @@ namespace dropout_dl {
 		if (this->season_number > 0) {
 			relative_path += "Season " + ((this->season_number < 10) ? std::string("0") : std::string("")) + std::to_string(this->season_number) + "/";
 		}
+		else if (this->season_number == 0) {
+			relative_path += "Specials/";
+		}
 
 		// Add filename
 		std::string series_prefix = this->series.empty() ? "" : this->series + " - ";
 		std::string filename;
 
-		if (this->episode_number > 0 && this->season_number > 0) {
+		if (this->episode_number > 0 && this->season_number >= 0) {
 			filename = series_prefix +
 			          std::string("s") + ((this->season_number < 10) ? "0" : "") + std::to_string(this->season_number) +
 			          "e" + ((this->episode_number < 10) ? "0" : "") + std::to_string(this->episode_number) +
