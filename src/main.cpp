@@ -1,4 +1,6 @@
 #include <iostream>
+#include <thread>
+#include <vector>
 
 #include "series.h"
 #include "login.h"
@@ -28,6 +30,7 @@ namespace dropout_dl {
 		bool keep_segment_files = false;
 		bool list_urls = false;
 		uint32_t rate_limit = 2000; // rate limit in ms
+		int parallel_tasks = 1; // number of episodes to download in parallel (default: 1 = sequential)
 		std::string quality;
 		std::string filename;
 		std::string login_file = "login"; /// Default incase the option is not used
@@ -118,6 +121,17 @@ namespace dropout_dl {
 					}
 					rate_limit = std::stoi(args[++i]);
 				}
+				else if (arg == "paralleltasks" || arg == "p") {
+					if (i + 1 >= args.size()) {
+						std::cerr << "ARGUMENT PARSE ERROR: --paralleltasks used with too few following arguments\n";
+						exit(8);
+					}
+					parallel_tasks = std::stoi(args[++i]);
+					if (parallel_tasks < 1) {
+						std::cerr << "ARGUMENT PARSE ERROR: --paralleltasks must be at least 1\n";
+						exit(8);
+					}
+				}
 				else if (arg == "format" || arg == "f") {
 				if (i + 1 >= args.size()) {
 					std::cerr << "ARGUMENT PARSE ERROR: --format used with too few following arguments\n";
@@ -171,6 +185,7 @@ namespace dropout_dl {
 								 "\t--browser-cookies   -bc  Use cookies from the browser placed in 'firefox_profile' or 'chrome_profile'\n"
 								 "\t--rate              -r   Set the ammount of time in milliseconds between getting episodes\n"
 								 "\t                             Only affects series and season downloads. Defaults to 2000\n"
+								 "\t--paralleltasks     -p   Set the number of episodes to download in parallel. Defaults to 1 (sequential)\n"
 								 "\t--force-cookies          Interpret the next argument as the session cookie\n"
 								 "\t--login-file        -lf  Use the next argument as the path to the login file\n"
 								 "\t--series            -S   Interpret the url as a link to a series and download all episodes from all seasons\n"
@@ -670,12 +685,25 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	// Download each episode
-	for (auto& ep : episodes_to_download) {
-		ep.download(options.quality, output_directory, options.filename, options.container_format);
+	// Download episodes in parallel (configurable via --paralleltasks flag)
+	for (size_t i = 0; i < episodes_to_download.size(); i += options.parallel_tasks) {
+		std::vector<std::thread> threads;
 
-		// Rate limit between episodes
-		if (&ep != &episodes_to_download.back()) {
+		// Start up to parallel_tasks downloads
+		size_t batch_end = std::min(i + options.parallel_tasks, episodes_to_download.size());
+		for (size_t j = i; j < batch_end; j++) {
+			threads.emplace_back([&ep = episodes_to_download[j], &options, &output_directory]() {
+				ep.download(options.quality, output_directory, options.filename, options.container_format);
+			});
+		}
+
+		// Wait for all threads in this batch to complete
+		for (auto& thread : threads) {
+			thread.join();
+		}
+
+		// Rate limit between batches (not the last batch)
+		if (batch_end < episodes_to_download.size()) {
 			std::this_thread::sleep_for(std::chrono::milliseconds(options.rate_limit));
 		}
 	}
