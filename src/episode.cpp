@@ -430,11 +430,31 @@ namespace dropout_dl {
 
 		std::string filepath = base_directory + "/" + filename;
 
-		if(std::filesystem::is_regular_file(filepath)) {
-			std::cout << YELLOW << "File already exists: " << filepath << RESET << '\n';
+		std::string final_output = filepath + "." + container_format;
+		std::string temp_output = filepath + "." + container_format + ".tmp";
+
+		// Check if final file already exists
+		if (std::filesystem::exists(final_output)) {
+			std::cout << YELLOW << "File already exists: " << final_output << RESET << '\n';
 			return;
 		}
-		if (!check_existing(quality,filepath + "." + container_format) && !this->download_captions_only) {
+
+		// Check if temp merged file exists (download completed but rename failed)
+		if (std::filesystem::exists(temp_output)) {
+			std::cout << YELLOW << "Resuming: Renaming completed download " << temp_output << RESET << '\n';
+			std::filesystem::rename(temp_output, final_output);
+			// Also rename captions if they exist in temp form
+			if (std::filesystem::exists(filepath + ".vtt.tmp")) {
+				std::filesystem::rename(filepath + ".vtt.tmp", filepath + ".vtt");
+			}
+			// Clean up any leftover segment files
+			std::filesystem::remove(filepath + ".m4a.tmp");
+			std::filesystem::remove(filepath + ".m4s.tmp");
+			std::cout << GREEN << "Resumed and completed: " << final_output << RESET << '\n';
+			return;
+		}
+
+		if (!this->download_captions_only) {
 			int video_quality_index = get_video_quality_index(quality);
 			int number_of_video_segs = this->video_quality_segments[video_quality_index].size();
 			int number_of_audio_segs = this->audio_quality_segments[audio_quality_index].size();
@@ -724,7 +744,6 @@ namespace dropout_dl {
 		}
 	}
 
-	/// TODO: Reimplement size checking. I.E. replace an existing file if the size is not the same
 	bool episode::check_existing(const std::string &quality, const std::string& filename){
 		std::filesystem::path file_path = filename;
 		if (std::filesystem::exists(file_path)) {

@@ -44,9 +44,11 @@ This fork adds several performance improvements, stability fixes, and new featur
   - Special episode support (S00Exx for specials, including "Last Looks" and "Behind the Scenes" content)
 - **🔍 Preview Downloads** - `--list-urls` flag to see what would be downloaded without actually downloading
 - **🐛 Docker Debugging Support** - Build with `DEBUG_BUILD=1` for gdb integration and crash analysis
-- **💾 Atomic File Operations** - All files are downloaded to `.tmp` extensions and only renamed to final format upon successful completion
-  - Ensures interrupted downloads are easily identifiable and resumable
+- **💾 Atomic File Operations & Auto-Resume** - All files are downloaded to `.tmp` extensions and only renamed to final format upon successful completion
+  - Automatically resumes interrupted downloads by detecting and completing partial `.tmp` files
+  - Ensures interrupted downloads are easily identifiable
   - Prevents partially downloaded files from appearing as complete
+  - No manual intervention needed to resume - just re-run the same command
 
 ### Stability Improvements
 - Multiple memory safety fixes preventing segmentation faults
