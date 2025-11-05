@@ -688,6 +688,8 @@ int main(int argc, char** argv) {
 
 	// Download episodes sequentially with segment buffering
 	for (size_t i = 0; i < episodes_to_download.size(); i++) {
+		std::cout << "\n[" << (i + 1) << "/" << episodes_to_download.size() << "] Downloading: " << episodes_to_download[i].name << "\n";
+
 		episodes_to_download[i].download(options.quality, output_directory, options.filename, options.container_format, options.segment_buffer_size);
 
 		// Rate limit between episodes (not the last episode)
@@ -696,6 +698,7 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	std::cout << "\n" << GREEN << "All downloads completed successfully! Downloaded " << episodes_to_download.size() << " episode(s)." << RESET << "\n";
 
 	return 0;
 }
