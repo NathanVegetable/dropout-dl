@@ -3,6 +3,13 @@ project(dropout-dl)
 
 set(CMAKE_CXX_STANDARD 17)
 
+# Add debug symbols when DEBUG_BUILD is enabled
+IF(DEBUG_BUILD)
+    set(CMAKE_BUILD_TYPE Debug)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
+    message(STATUS "Building with debug symbols enabled")
+ENDIF()
+
 
 IF(DROPOUT_DL_BUILD_ALL)
 	add_executable(dropout-dl-minimal

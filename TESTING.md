@@ -127,3 +127,60 @@ The `--format` flag supports both:
 - **mkv**: H.264 video + AAC audio in Matroska container
 
 Both formats contain the same video/audio streams, only the container differs.
+
+## Debugging with Docker
+
+### Building in Debug Mode
+
+To troubleshoot crashes or step through code, build the Docker image with debug symbols:
+
+```bash
+docker build --build-arg DEBUG_BUILD=1 -t dropout-dl:debug .
+```
+
+This will:
+- Compile with debug symbols (`-g -O0`)
+- Install gdb and bash in the container
+- Enable core dumps for crash analysis
+
+### Running with GDB
+
+To run the program under gdb for interactive debugging:
+
+```bash
+# On Windows Git Bash
+env MSYS_NO_PATHCONV=1 docker run --rm -it \
+  --cap-add=SYS_PTRACE \
+  --security-opt seccomp=unconfined \
+  -v "$(pwd)/login:/app/login" \
+  -v "$(pwd)/series-output:/output" \
+  --entrypoint /bin/bash \
+  dropout-dl:debug
+
+# Inside the container, run with gdb:
+gdb --args /app/dropout-dl --verbose --series --output-directory /output https://watch.dropout.tv/erotic-clubhouse
+```
+
+### Running and Catching Crashes
+
+To let the program run and generate a backtrace if it crashes:
+
+```bash
+env MSYS_NO_PATHCONV=1 docker run --rm -it \
+  --cap-add=SYS_PTRACE \
+  --security-opt seccomp=unconfined \
+  -v "$(pwd)/login:/app/login" \
+  -v "$(pwd)/series-output:/output" \
+  --entrypoint /bin/bash \
+  dropout-dl:debug -c \
+  "gdb -batch -ex 'run' -ex 'bt full' -ex 'quit' --args /app/dropout-dl --verbose --series --output-directory /output https://watch.dropout.tv/erotic-clubhouse"
+```
+
+This will automatically print a full backtrace if the program crashes.
+
+### Docker Debugging Flags Explained
+
+- `--cap-add=SYS_PTRACE`: Allows gdb to attach to processes
+- `--security-opt seccomp=unconfined`: Disables seccomp filtering that can interfere with debugging
+- `--entrypoint /bin/bash`: Overrides the default entrypoint to give you a shell or run custom commands
+- `-it`: Interactive terminal (required for gdb)
