@@ -439,10 +439,45 @@ namespace dropout_dl {
 		std::string audio_temp = filepath + "." + audio_quality_str + ".m4a.tmp";
 		std::string captions_temp = filepath + "." + quality + ".vtt.tmp";
 
-		// Check if final file already exists
+		// Check if final file already exists and matches requested quality
 		if (std::filesystem::exists(final_output)) {
-			std::cout << YELLOW << "File already exists: " << final_output << RESET << '\n';
-			return;
+			// Extract numeric height from quality string (e.g., "1080p" -> 1080)
+			std::string quality_height_str = quality.substr(0, quality.find('p'));
+			int requested_height = std::stoi(quality_height_str);
+
+			// Use ffprobe to check video resolution of existing file
+			std::string ffprobe_cmd = "ffprobe -v error -select_streams v:0 -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 \"" + final_output + "\"";
+			FILE* pipe = popen(ffprobe_cmd.c_str(), "r");
+			if (pipe) {
+				char buffer[128];
+				std::string result = "";
+				while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+					result += buffer;
+				}
+				int exit_code = pclose(pipe);
+
+				if (exit_code == 0 && !result.empty()) {
+					int existing_height = std::stoi(result);
+					if (existing_height == requested_height) {
+						std::cout << YELLOW << "File already exists with correct quality (" << quality << "): " << final_output << RESET << '\n';
+						return;
+					} else {
+						std::cout << YELLOW << "File exists but wrong quality (existing: " << existing_height << "p, requested: " << quality << "). Deleting and re-downloading..." << RESET << '\n';
+						std::filesystem::remove(final_output);
+						// Also remove old captions if they exist
+						std::string old_captions = filepath + ".vtt";
+						if (std::filesystem::exists(old_captions)) {
+							std::filesystem::remove(old_captions);
+						}
+					}
+				} else {
+					std::cout << YELLOW << "File exists but couldn't verify quality. Deleting and re-downloading..." << RESET << '\n';
+					std::filesystem::remove(final_output);
+				}
+			} else {
+				std::cout << YELLOW << "File exists but ffprobe unavailable. Deleting and re-downloading..." << RESET << '\n';
+				std::filesystem::remove(final_output);
+			}
 		}
 
 		// Check if temp merged file exists (download completed but rename failed)
