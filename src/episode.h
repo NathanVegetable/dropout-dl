@@ -255,7 +255,7 @@ namespace dropout_dl {
 		 * Downloads the episode using the get_video_data function and places it into the <b>filename</b> file in the <b>base_directory</b> directory.
 		 * If the file already exists it will output the name in yellow and will not redownload.
 		 */
-		void download_quality(const std::string& quality, const std::string& base_directory, const std::string& filename, const std::string& audio_quality = "medium", const std::string& container_format = "mp4");
+		void download_quality(const std::string& quality, const std::string& base_directory, const std::string& filename, const std::string& audio_quality = "medium", const std::string& container_format = "mp4", bool parallel_streams = true);
 
 		/**
 		 *
@@ -266,7 +266,7 @@ namespace dropout_dl {
 		 * Downloads the episode using the get_video_data function and places it into the <b>filename</b> file in the <b>series_directory</b> directory.
 		 * If the <b>filename</b> parameter is left empty it will default to the E\<episode_number\>\<name\>.mp4 format.
 		 */
-		void download(const std::string& quality, const std::string& series_directory, std::string filename = "", const std::string& container_format = "mp4");
+		void download(const std::string& quality, const std::string& series_directory, std::string filename = "", const std::string& container_format = "mp4", bool parallel_streams = true);
 
 		/**
 		 * @param container_format - The container format to use for the filename extension

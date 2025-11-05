@@ -5,6 +5,7 @@
 #include "season.h"
 #include <regex>
 #include <algorithm>
+#include <thread>
 
 namespace dropout_dl {
 	nlohmann::json episode::get_meta_data_json(const std::string& html_data) {
@@ -373,7 +374,7 @@ namespace dropout_dl {
 	}
 
 
-	void episode::download_quality(const std::string& quality, const std::string& base_directory, const std::string& filename, const std::string& audio_quality, const std::string& container_format) {
+	void episode::download_quality(const std::string& quality, const std::string& base_directory, const std::string& filename, const std::string& audio_quality, const std::string& container_format, bool parallel_streams) {
 		if (!this->is_from_cdn) {
 			std::cerr << "EPISODE ERROR: Episode does not use CDN. Please report this issue on GitHub with the download url used.\n";
 			return;
@@ -431,58 +432,119 @@ namespace dropout_dl {
 		}
 		if (!check_existing(quality,filepath + "." + container_format) && !this->download_captions_only) {
 			int video_quality_index = get_video_quality_index(quality);
-			std::string tmp;
-			if (this->verbose) {
-				std::cout << "Number of Video Segments: " << this->video_quality_segments[video_quality_index].size() << "\n";
-			}
-			std::fstream out(filepath + ".m4s",
-				std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
-
-			out << dropout_dl::base64_decode(video_initial_segment_quality[video_quality_index]);
-
 			int number_of_video_segs = this->video_quality_segments[video_quality_index].size();
 
-			std::string curl_buffer; // Using a buffer string at the top here to minimize memory reallocation
-			curl_buffer.reserve(1 << 20); // A megabyte
-			for (int i = 0; i < number_of_video_segs; i++) {
-				dropout_dl::segment_progress_func(filepath + ".m4s", i, number_of_video_segs);
-				if(!this->get_video_segment_data(video_quality_index, i, curl_buffer, filepath)) {
-					std::cerr << RED << "ERROR: Unknown error occurred in Curl during video segment download.\n" << RESET;
-					return; 
-				}
-				// Writing the segment directly to the out fstream would've been the simplest thing to do,
-				// but we do actually want to use a buffer so that we can double-check that the output is valid here.
-				if(curl_buffer == "{\"status\":403,\"title\":\"Forbidden\",\"detail\":\"403 Forbidden\"}\n" ||
-				   (curl_buffer.size() < 1024 && curl_buffer.find("403")) // Trying to avoid searching for a 403 when it's a megabyte packet
-				) {
-					std::cerr << RED << "ERROR: Unable to get video segment #" << i << " due to 403 response from CDN\n" << RESET;
+			if (this->verbose) {
+				std::cout << "Number of Video Segments: " << number_of_video_segs << "\n";
+				std::cout << "Number of Audio Segments: " << this->audio_quality_segments[audio_quality_index].size() << "\n";
+			}
+
+			if (parallel_streams) {
+				// Download video and audio in parallel using threads
+				bool video_error = false;
+				bool audio_error = false;
+
+				std::thread video_thread([&]() {
+					std::fstream out(filepath + ".m4s",
+						std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
+
+					out << dropout_dl::base64_decode(video_initial_segment_quality[video_quality_index]);
+
+					std::string curl_buffer;
+					curl_buffer.reserve(1 << 20); // A megabyte
+					for (int i = 0; i < number_of_video_segs; i++) {
+						dropout_dl::segment_progress_func(filepath + ".m4s", i, number_of_video_segs);
+						if(!this->get_video_segment_data(video_quality_index, i, curl_buffer, filepath)) {
+							std::cerr << RED << "ERROR: Unknown error occurred in Curl during video segment download.\n" << RESET;
+							video_error = true;
+							break;
+						}
+						if(curl_buffer == "{\"status\":403,\"title\":\"Forbidden\",\"detail\":\"403 Forbidden\"}\n" ||
+						   (curl_buffer.size() < 1024 && curl_buffer.find("403"))
+						) {
+							std::cerr << RED << "ERROR: Unable to get video segment #" << i << " due to 403 response from CDN\n" << RESET;
+							video_error = true;
+							break;
+						}
+						out << curl_buffer;
+					}
+					out.close();
+					std::cout << std::endl;
+				});
+
+				std::thread audio_thread([&]() {
+					std::fstream out(filepath + ".m4a",
+						std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
+
+					out << dropout_dl::base64_decode(audio_initial_segment_quality[audio_quality_index]);
+
+					std::string tmp;
+					for (int i = 0; i < this->audio_quality_segments[audio_quality_index].size(); i++) {
+						dropout_dl::segment_progress_func(filepath + ".m4a", i, number_of_video_segs);
+						tmp = this->get_audio_segment_data(audio_quality_index, i, filepath);
+						if (tmp == "Not Found") {
+							std::cerr << YELLOW << "Could not get audio segment " << i << RESET << "\n";
+							audio_error = true;
+							break;
+						}
+						out << tmp;
+					}
+					out.close();
+					std::cout << std::endl;
+				});
+
+				video_thread.join();
+				audio_thread.join();
+
+				if (video_error || audio_error) {
 					return;
 				}
-				out << curl_buffer;
 			}
-			out.close();
-			std::cout << std::endl;
+			else {
+				// Download video and audio sequentially (original behavior)
+				std::fstream out(filepath + ".m4s",
+					std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
 
-			if (this->verbose) {
-				std::cout << "Number of Audio Segments: " << this->audio_quality_segments.front().size() << "\n";
-			}
-			out = std::fstream(filepath + ".m4a",
-				std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
+				out << dropout_dl::base64_decode(video_initial_segment_quality[video_quality_index]);
 
-			out << dropout_dl::base64_decode(audio_initial_segment_quality[audio_quality_index]);
-
-			for (int i = 0; i < this->audio_quality_segments[audio_quality_index].size(); i++) {
-				dropout_dl::segment_progress_func(filepath + ".m4a", i, number_of_video_segs);
-				tmp = this->get_audio_segment_data(audio_quality_index, i, filepath);
-				if (tmp == "Not Found") {
-					std::cerr << YELLOW << "Could not get audio segment " << i << RESET << "\n";
-					break;
+				std::string curl_buffer;
+				curl_buffer.reserve(1 << 20); // A megabyte
+				for (int i = 0; i < number_of_video_segs; i++) {
+					dropout_dl::segment_progress_func(filepath + ".m4s", i, number_of_video_segs);
+					if(!this->get_video_segment_data(video_quality_index, i, curl_buffer, filepath)) {
+						std::cerr << RED << "ERROR: Unknown error occurred in Curl during video segment download.\n" << RESET;
+						return;
+					}
+					if(curl_buffer == "{\"status\":403,\"title\":\"Forbidden\",\"detail\":\"403 Forbidden\"}\n" ||
+					   (curl_buffer.size() < 1024 && curl_buffer.find("403"))
+					) {
+						std::cerr << RED << "ERROR: Unable to get video segment #" << i << " due to 403 response from CDN\n" << RESET;
+						return;
+					}
+					out << curl_buffer;
 				}
-				out << tmp;
-			}
-			out.close();
+				out.close();
+				std::cout << std::endl;
 
-			std::cout << std::endl;
+				out = std::fstream(filepath + ".m4a",
+					std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
+
+				out << dropout_dl::base64_decode(audio_initial_segment_quality[audio_quality_index]);
+
+				std::string tmp;
+				for (int i = 0; i < this->audio_quality_segments[audio_quality_index].size(); i++) {
+					dropout_dl::segment_progress_func(filepath + ".m4a", i, number_of_video_segs);
+					tmp = this->get_audio_segment_data(audio_quality_index, i, filepath);
+					if (tmp == "Not Found") {
+						std::cerr << YELLOW << "Could not get audio segment " << i << RESET << "\n";
+						break;
+					}
+					out << tmp;
+				}
+				out.close();
+
+				std::cout << std::endl;
+			}
 
 		}
 
@@ -584,7 +646,7 @@ namespace dropout_dl {
 		return relative_path;
 	}
 
-	void episode::download(const std::string& quality, const std::string& series_directory, std::string filename, const std::string& container_format) {
+	void episode::download(const std::string& quality, const std::string& series_directory, std::string filename, const std::string& container_format, bool parallel_streams) {
 		// Build the full path with Season subdirectory (Plex format: "Series Name/Season 01/")
 		std::string download_directory = get_download_directory(series_directory);
 
@@ -602,7 +664,7 @@ namespace dropout_dl {
 				// Determine audio quality based on video quality
 			int video_res = get_int_in_string(possible_video_quality);
 			std::string audio_qual = (video_res >= 720) ? "highest" : "medium";
-			this->download_quality(possible_video_quality, download_directory + "/" + possible_video_quality, filename, audio_qual, container_format);
+			this->download_quality(possible_video_quality, download_directory + "/" + possible_video_quality, filename, audio_qual, container_format, parallel_streams);
 			}
 		}
 		else if (quality == "highest") {
@@ -616,7 +678,7 @@ namespace dropout_dl {
 					highest_quality = possible_quality;
 				}
 			}
-			this->download_quality(highest_quality, download_directory, filename, "highest", container_format);
+			this->download_quality(highest_quality, download_directory, filename, "highest", container_format, parallel_streams);
 		}
 		else if (quality == "lowest") {
 			std::string lowest_quality;
@@ -629,14 +691,14 @@ namespace dropout_dl {
 					lowest_quality = possible_quality;
 				}
 			}
-			this->download_quality(lowest_quality, download_directory, filename, "lowest", container_format);
+			this->download_quality(lowest_quality, download_directory, filename, "lowest", container_format, parallel_streams);
 		}
 		else {
 			// Specific quality like 720p, 1080p, etc.
 			// Use highest audio for 720p and above, medium for lower resolutions
 			int video_res = get_int_in_string(quality);
 			std::string audio_qual = (video_res >= 720) ? "highest" : "medium";
-			this->download_quality(quality, download_directory, filename, audio_qual, container_format);
+			this->download_quality(quality, download_directory, filename, audio_qual, container_format, parallel_streams);
 		}
 	}
 

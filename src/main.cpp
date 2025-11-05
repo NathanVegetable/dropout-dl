@@ -29,6 +29,7 @@ namespace dropout_dl {
         bool download_captions_only = false;
 		bool keep_segment_files = false;
 		bool list_urls = false;
+		bool parallel_streams = true; // download video and audio in parallel within each episode (default: true)
 		uint32_t rate_limit = 2000; // rate limit in ms
 		int parallel_tasks = 1; // number of episodes to download in parallel (default: 1 = sequential)
 		std::string quality;
@@ -168,6 +169,9 @@ namespace dropout_dl {
 				else if (arg == "list-urls" || arg == "l") {
 					list_urls = true;
 				}
+				else if (arg == "sequential-streams" || arg == "ss") {
+					parallel_streams = false;
+				}
 				//// TODO: Add support for keeping m4a and m4s files
 				else if (arg == "help" || arg == "h") {
 					std::cout << "Usage: dropout-dl [OPTIONS] <url> [OPTIONS]\n"
@@ -193,7 +197,8 @@ namespace dropout_dl {
 								 "\t--episode           -e   Interpret the url as a link to a single episode\n"
 								 "\t--captions          -c   Download the captions along with the episode. Overridden by --captions-only if set.\n"
                                  "\t--captions-only     -co  Download the captions only, without the episode\n"
-								 "\t--list-urls         -l   List all episode URLs that would be downloaded without downloading\n";
+								 "\t--list-urls         -l   List all episode URLs that would be downloaded without downloading\n"
+								 "\t--sequential-streams -ss Disable parallel video/audio downloads (enabled by default)\n";
 
 					exit(0);
 				}
@@ -693,7 +698,7 @@ int main(int argc, char** argv) {
 		size_t batch_end = std::min(i + options.parallel_tasks, episodes_to_download.size());
 		for (size_t j = i; j < batch_end; j++) {
 			threads.emplace_back([&ep = episodes_to_download[j], &options, &output_directory]() {
-				ep.download(options.quality, output_directory, options.filename, options.container_format);
+				ep.download(options.quality, output_directory, options.filename, options.container_format, options.parallel_streams);
 			});
 		}
 
