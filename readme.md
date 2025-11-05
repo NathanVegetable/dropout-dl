@@ -16,6 +16,13 @@
 
 # Fork Features
 
+> **⚠️ Important Disclaimer**
+>
+> - **AI-Assisted Development**: This fork was developed with AI assistance. No warranties, guarantees, or support provided. Use at your own risk.
+> - **Not Affiliated**: This project is not affiliated with, endorsed by, or connected to Dropout, College Humor, or the original dropout-dl maintainers.
+> - **Support Dropout**: We strongly encourage you to [subscribe to Dropout](https://www.dropout.tv). They create amazing content and deserve your support. This tool exists solely for personal convenience (offline viewing, backups, Plex organization) for paying subscribers.
+> - **No Piracy**: Redistribution of downloaded content is illegal and explicitly discouraged. Do not share downloaded files. This is for your personal home viewing only.
+
 This fork adds several performance improvements, stability fixes, and new features on top of the original dropout-dl:
 
 ### Performance Enhancements
