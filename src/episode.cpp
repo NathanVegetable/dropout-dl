@@ -430,8 +430,14 @@ namespace dropout_dl {
 
 		std::string filepath = base_directory + "/" + filename;
 
+		std::string audio_quality_str = this->audio_qualities[audio_quality_index];
+
+		// Quality-aware temp filenames to prevent conflicts when switching qualities
 		std::string final_output = filepath + "." + container_format;
-		std::string temp_output = filepath + "." + container_format + ".tmp";
+		std::string temp_output = filepath + "." + quality + "." + container_format + ".tmp";
+		std::string video_temp = filepath + "." + quality + ".m4s.tmp";
+		std::string audio_temp = filepath + "." + audio_quality_str + ".m4a.tmp";
+		std::string captions_temp = filepath + "." + quality + ".vtt.tmp";
 
 		// Check if final file already exists
 		if (std::filesystem::exists(final_output)) {
@@ -444,12 +450,12 @@ namespace dropout_dl {
 			std::cout << YELLOW << "Resuming: Renaming completed download " << temp_output << RESET << '\n';
 			std::filesystem::rename(temp_output, final_output);
 			// Also rename captions if they exist in temp form
-			if (std::filesystem::exists(filepath + ".vtt.tmp")) {
-				std::filesystem::rename(filepath + ".vtt.tmp", filepath + ".vtt");
+			if (std::filesystem::exists(captions_temp)) {
+				std::filesystem::rename(captions_temp, filepath + ".vtt");
 			}
 			// Clean up any leftover segment files
-			std::filesystem::remove(filepath + ".m4a.tmp");
-			std::filesystem::remove(filepath + ".m4s.tmp");
+			std::filesystem::remove(audio_temp);
+			std::filesystem::remove(video_temp);
 			std::cout << GREEN << "Resumed and completed: " << final_output << RESET << '\n';
 			return;
 		}
@@ -467,7 +473,7 @@ namespace dropout_dl {
 
 			// Download video with sliding window buffering
 			{
-				std::fstream out(filepath + ".m4s.tmp",
+				std::fstream out(video_temp,
 					std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
 				out << dropout_dl::base64_decode(video_initial_segment_quality[video_quality_index]);
 
@@ -497,7 +503,7 @@ namespace dropout_dl {
 
 				// Process segments in order with sliding window
 				while (next_to_write < number_of_video_segs) {
-					dropout_dl::segment_progress_func(filepath + ".m4s.tmp", next_to_write, number_of_video_segs);
+					dropout_dl::segment_progress_func(video_temp, next_to_write, number_of_video_segs);
 
 					// Wait for next segment in sequence
 					auto result = pending_segments[next_to_write].get();
@@ -525,7 +531,7 @@ namespace dropout_dl {
 
 			// Download audio with sliding window buffering
 			{
-				std::fstream out(filepath + ".m4a.tmp",
+				std::fstream out(audio_temp,
 					std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
 				out << dropout_dl::base64_decode(audio_initial_segment_quality[audio_quality_index]);
 
@@ -550,7 +556,7 @@ namespace dropout_dl {
 
 				// Process segments in order with sliding window
 				while (next_to_write < number_of_audio_segs) {
-					dropout_dl::segment_progress_func(filepath + ".m4a.tmp", next_to_write, number_of_audio_segs);
+					dropout_dl::segment_progress_func(audio_temp, next_to_write, number_of_audio_segs);
 
 					// Wait for next segment in sequence
 					auto result = pending_segments[next_to_write].get();
@@ -578,7 +584,7 @@ namespace dropout_dl {
 		}
 
 		if (!this->captions_url.empty()) {
-			std::fstream captions_file(filepath + ".vtt.tmp",
+			std::fstream captions_file(captions_temp,
 							 std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
 
 			captions_file << get_generic_page(this->captions_url, this->episode_url);
@@ -587,9 +593,9 @@ namespace dropout_dl {
 
 		#ifdef DROPOUT_DL_FFMPEG
 		// Merge to temporary file first, then rename to final format when complete
-	std::string ffmpeg_cmd = "ffmpeg -i '" + filepath + ".m4a.tmp' -i '" + filepath + ".m4s.tmp'";
+	std::string ffmpeg_cmd = "ffmpeg -i '" + audio_temp + "' -i '" + video_temp + "'";
 		if (!this->captions_url.empty()) {
-			ffmpeg_cmd += " -i '" + filepath + ".vtt.tmp' -metadata:s:s:0 language=eng";
+			ffmpeg_cmd += " -i '" + captions_temp + "' -metadata:s:s:0 language=eng";
 		}
 		// Explicitly specify output format since .tmp extension confuses ffmpeg
 	std::string ffmpeg_format = (container_format == "mkv") ? "matroska" : "mp4";
@@ -606,11 +612,11 @@ namespace dropout_dl {
 		// Rename temporary files to final format only when merge succeeds
 		std::filesystem::rename(temp_output, final_output);
 		if (!this->captions_url.empty()) {
-			std::filesystem::rename(filepath + ".vtt.tmp", filepath + ".vtt");
+			std::filesystem::rename(captions_temp, filepath + ".vtt");
 		}
 		// Clean up temporary segment files
-		std::filesystem::remove(filepath + ".m4a.tmp");
-		std::filesystem::remove(filepath + ".m4s.tmp");
+		std::filesystem::remove(audio_temp);
+		std::filesystem::remove(video_temp);
 	}
 	else {
 		// Clean up failed temporary output
