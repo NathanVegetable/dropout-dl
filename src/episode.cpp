@@ -591,7 +591,9 @@ namespace dropout_dl {
 		if (!this->captions_url.empty()) {
 			ffmpeg_cmd += " -i '" + filepath + ".vtt.tmp' -metadata:s:s:0 language=eng";
 		}
-		ffmpeg_cmd += " -c copy '" + temp_output + "'";
+		// Explicitly specify output format since .tmp extension confuses ffmpeg
+	std::string ffmpeg_format = (container_format == "mkv") ? "matroska" : "mp4";
+	ffmpeg_cmd += " -c copy -f " + ffmpeg_format + " '" + temp_output + "'";
 		if (!this->verbose) {
 			ffmpeg_cmd += " > /dev/null";
 		}
