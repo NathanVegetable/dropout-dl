@@ -86,7 +86,9 @@ namespace dropout_dl {
 		// Check if URL contains patterns that indicate a special episode
 		// These should go in Season 0 (Specials) according to TheTVDB/Plex conventions
 		return episode_url.find("behind-the-scenes") != std::string::npos ||
-		       episode_url.find("cut-for-time") != std::string::npos;
+		       episode_url.find("cut-for-time") != std::string::npos ||
+		       episode_url.find("last-looks") != std::string::npos ||
+		       episode_url.find("bonus-content") != std::string::npos;
 	}
 
 	std::string episode::get_embed_url(const std::string& html_data) {
