@@ -435,116 +435,121 @@ namespace dropout_dl {
 		if (!check_existing(quality,filepath + "." + container_format) && !this->download_captions_only) {
 			int video_quality_index = get_video_quality_index(quality);
 			int number_of_video_segs = this->video_quality_segments[video_quality_index].size();
+			int number_of_audio_segs = this->audio_quality_segments[audio_quality_index].size();
 
 			if (this->verbose) {
 				std::cout << "Number of Video Segments: " << number_of_video_segs << "\n";
-				std::cout << "Number of Audio Segments: " << this->audio_quality_segments[audio_quality_index].size() << "\n";
+				std::cout << "Number of Audio Segments: " << number_of_audio_segs << "\n";
+				std::cout << "Segment buffer size: " << segment_buffer_size << "\n";
 			}
 
-			if (parallel_streams) {
-				// Download video and audio in parallel using threads
-				bool video_error = false;
-				bool audio_error = false;
-
-				std::thread video_thread([&]() {
-					std::fstream out(filepath + ".m4s",
-						std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
-
-					out << dropout_dl::base64_decode(video_initial_segment_quality[video_quality_index]);
-
-					std::string curl_buffer;
-					curl_buffer.reserve(1 << 20); // A megabyte
-					for (int i = 0; i < number_of_video_segs; i++) {
-						dropout_dl::segment_progress_func(filepath + ".m4s", i, number_of_video_segs);
-						if(!this->get_video_segment_data(video_quality_index, i, curl_buffer, filepath)) {
-							std::cerr << RED << "ERROR: Unknown error occurred in Curl during video segment download.\n" << RESET;
-							video_error = true;
-							break;
-						}
-						if(curl_buffer == "{\"status\":403,\"title\":\"Forbidden\",\"detail\":\"403 Forbidden\"}\n" ||
-						   (curl_buffer.size() < 1024 && curl_buffer.find("403"))
-						) {
-							std::cerr << RED << "ERROR: Unable to get video segment #" << i << " due to 403 response from CDN\n" << RESET;
-							video_error = true;
-							break;
-						}
-						out << curl_buffer;
-					}
-					out.close();
-					std::cout << std::endl;
-				});
-
-				std::thread audio_thread([&]() {
-					std::fstream out(filepath + ".m4a",
-						std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
-
-					out << dropout_dl::base64_decode(audio_initial_segment_quality[audio_quality_index]);
-
-					std::string tmp;
-					for (int i = 0; i < this->audio_quality_segments[audio_quality_index].size(); i++) {
-						dropout_dl::segment_progress_func(filepath + ".m4a", i, number_of_video_segs);
-						tmp = this->get_audio_segment_data(audio_quality_index, i, filepath);
-						if (tmp == "Not Found") {
-							std::cerr << YELLOW << "Could not get audio segment " << i << RESET << "\n";
-							audio_error = true;
-							break;
-						}
-						out << tmp;
-					}
-					out.close();
-					std::cout << std::endl;
-				});
-
-				video_thread.join();
-				audio_thread.join();
-
-				if (video_error || audio_error) {
-					return;
-				}
-			}
-			else {
-				// Download video and audio sequentially (original behavior)
+			// Download video with sliding window buffering
+			{
 				std::fstream out(filepath + ".m4s",
 					std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
-
 				out << dropout_dl::base64_decode(video_initial_segment_quality[video_quality_index]);
 
-				std::string curl_buffer;
-				curl_buffer.reserve(1 << 20); // A megabyte
-				for (int i = 0; i < number_of_video_segs; i++) {
-					dropout_dl::segment_progress_func(filepath + ".m4s", i, number_of_video_segs);
-					if(!this->get_video_segment_data(video_quality_index, i, curl_buffer, filepath)) {
-						std::cerr << RED << "ERROR: Unknown error occurred in Curl during video segment download.\n" << RESET;
-						return;
+				std::map<int, std::future<std::pair<bool, std::string>>> pending_segments;
+				int next_to_download = 0;
+				int next_to_write = 0;
+
+				// Lambda for async video segment download
+				auto download_video_segment = [this, video_quality_index, &filepath](int seg_num) -> std::pair<bool, std::string> {
+					std::string buffer;
+					buffer.reserve(1 << 20); // Reserve 1MB
+					if (!this->get_video_segment_data(video_quality_index, seg_num, buffer, filepath)) {
+						return {false, ""};
 					}
-					if(curl_buffer == "{\"status\":403,\"title\":\"Forbidden\",\"detail\":\"403 Forbidden\"}\n" ||
-					   (curl_buffer.size() < 1024 && curl_buffer.find("403"))
-					) {
-						std::cerr << RED << "ERROR: Unable to get video segment #" << i << " due to 403 response from CDN\n" << RESET;
-						return;
+					if (buffer == "{\"status\":403,\"title\":\"Forbidden\",\"detail\":\"403 Forbidden\"}\n" ||
+						(buffer.size() < 1024 && buffer.find("403") != std::string::npos)) {
+						return {false, ""};
 					}
-					out << curl_buffer;
+					return {true, buffer};
+				};
+
+				// Fill initial window
+				while (next_to_download < segment_buffer_size && next_to_download < number_of_video_segs) {
+					pending_segments[next_to_download] = std::async(std::launch::async, download_video_segment, next_to_download);
+					next_to_download++;
 				}
+
+				// Process segments in order with sliding window
+				while (next_to_write < number_of_video_segs) {
+					dropout_dl::segment_progress_func(filepath + ".m4s", next_to_write, number_of_video_segs);
+
+					// Wait for next segment in sequence
+					auto result = pending_segments[next_to_write].get();
+					if (!result.first) {
+						std::cerr << RED << "ERROR: Failed to download video segment #" << next_to_write << "\n" << RESET;
+						out.close();
+						return;
+					}
+
+					// Write segment to file
+					out << result.second;
+					pending_segments.erase(next_to_write);
+					next_to_write++;
+
+					// Start next download to maintain window size
+					if (next_to_download < number_of_video_segs) {
+						pending_segments[next_to_download] = std::async(std::launch::async, download_video_segment, next_to_download);
+						next_to_download++;
+					}
+				}
+
 				out.close();
 				std::cout << std::endl;
+			}
 
-				out = std::fstream(filepath + ".m4a",
+			// Download audio with sliding window buffering
+			{
+				std::fstream out(filepath + ".m4a",
 					std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
-
 				out << dropout_dl::base64_decode(audio_initial_segment_quality[audio_quality_index]);
 
-				std::string tmp;
-				for (int i = 0; i < this->audio_quality_segments[audio_quality_index].size(); i++) {
-					dropout_dl::segment_progress_func(filepath + ".m4a", i, number_of_video_segs);
-					tmp = this->get_audio_segment_data(audio_quality_index, i, filepath);
-					if (tmp == "Not Found") {
-						std::cerr << YELLOW << "Could not get audio segment " << i << RESET << "\n";
+				std::map<int, std::future<std::pair<bool, std::string>>> pending_segments;
+				int next_to_download = 0;
+				int next_to_write = 0;
+
+				// Lambda for async audio segment download
+				auto download_audio_segment = [this, audio_quality_index, &filepath](int seg_num) -> std::pair<bool, std::string> {
+					std::string data = this->get_audio_segment_data(audio_quality_index, seg_num, filepath);
+					if (data == "Not Found") {
+						return {false, ""};
+					}
+					return {true, data};
+				};
+
+				// Fill initial window
+				while (next_to_download < segment_buffer_size && next_to_download < number_of_audio_segs) {
+					pending_segments[next_to_download] = std::async(std::launch::async, download_audio_segment, next_to_download);
+					next_to_download++;
+				}
+
+				// Process segments in order with sliding window
+				while (next_to_write < number_of_audio_segs) {
+					dropout_dl::segment_progress_func(filepath + ".m4a", next_to_write, number_of_audio_segs);
+
+					// Wait for next segment in sequence
+					auto result = pending_segments[next_to_write].get();
+					if (!result.first) {
+						std::cerr << YELLOW << "Could not get audio segment " << next_to_write << RESET << "\n";
 						break;
 					}
-					out << tmp;
-				}
-				out.close();
 
+					// Write segment to file
+					out << result.second;
+					pending_segments.erase(next_to_write);
+					next_to_write++;
+
+					// Start next download to maintain window size
+					if (next_to_download < number_of_audio_segs) {
+						pending_segments[next_to_download] = std::async(std::launch::async, download_audio_segment, next_to_download);
+						next_to_download++;
+					}
+				}
+
+				out.close();
 				std::cout << std::endl;
 			}
 
