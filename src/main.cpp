@@ -465,7 +465,7 @@ int main(int argc, char** argv) {
 				if (options.verbose) {
 					std::cout << "Main: Season " << season_num << " - Creating episode object " << (ep_index + 1) << "/" << season.episode_urls.size() << " for URL: " << episode_url << '\n';
 				}
-				dropout_dl::episode ep(episode_url, options.session_cookie, series_name, "Season " + std::to_string(season_num), 0, season_num, options.verbose, options.download_captions, options.download_captions_only);
+				dropout_dl::episode ep(episode_url, options.session_cookie, series_name, "Season " + std::to_string(season_num), ep_index + 1, season_num, options.verbose, options.download_captions, options.download_captions_only);
 				if (options.verbose) {
 					std::cout << "Main: Episode object created successfully, adding to download list\n";
 				}
@@ -530,7 +530,7 @@ int main(int argc, char** argv) {
 			if (options.verbose) {
 				std::cout << "Main: Creating episode object " << (ep_index + 1) << "/" << season.episode_urls.size() << " for URL: " << episode_url << '\n';
 			}
-			dropout_dl::episode ep(episode_url, options.session_cookie, series_name, "Season " + std::to_string(season.season_number), 0, season.season_number, options.verbose, options.download_captions, options.download_captions_only);
+			dropout_dl::episode ep(episode_url, options.session_cookie, series_name, "Season " + std::to_string(season.season_number), ep_index + 1, season.season_number, options.verbose, options.download_captions, options.download_captions_only);
 			if (options.verbose) {
 				std::cout << "Main: Episode object created successfully, adding to download list\n";
 			}
