@@ -2,6 +2,7 @@
     <img src="https://raw.githubusercontent.com/mosswg/dropout-dl/main/assets/dropout_dl_logo.png" width="50%" />
 </div>
 
+* [Fork Features](#fork-features)
 * [Installation](#installation)
   * [Docker](#docker)
   * [How to Build](#how-to-build)
@@ -11,7 +12,39 @@
   * [Login](#login)
   * [Cookies](#cookies)
 
+---
 
+# Fork Features
+
+This fork adds several performance improvements, stability fixes, and new features on top of the original dropout-dl:
+
+### Performance Enhancements
+- **⚡ Concurrent Segment Buffering** - Downloads multiple segments simultaneously using a sliding window algorithm for significantly faster downloads
+  - Controlled via `--concurrent-segments` flag (default: 5 concurrent segments)
+  - Maintains sequential write order while downloading in parallel
+  - Tested with 240p through 1080p content
+- **🎯 Improved Audio Quality Matching** - Audio quality now intelligently matches video quality tier instead of defaulting to medium
+
+### New Features
+- **📦 MKV Container Format** - Support for outputting to Matroska (MKV) format via `--format mkv` flag
+- **🎬 Plex-Compatible Naming** - Follows Plex naming conventions for proper library detection
+  - Format: `Series Name - S##E## - Episode Name.ext`
+  - Special episode support (S00Exx for specials)
+- **🔍 Preview Downloads** - `--list-urls` flag to see what would be downloaded without actually downloading
+- **🐛 Docker Debugging Support** - Build with `DEBUG_BUILD=1` for gdb integration and crash analysis
+
+### Stability Improvements
+- Multiple memory safety fixes preventing segmentation faults
+- Bounds checking for HTML parsing loops
+- Null pointer checks throughout codebase
+- Fixed episode numbering bugs in series/season downloads
+
+### Documentation
+- Added [TESTING.md](TESTING.md) with Docker testing workflows and debugging instructions
+
+For the original project, see: [mosswg/dropout-dl](https://github.com/mosswg/dropout-dl)
+
+---
 
 # Installation
 ## Docker
@@ -85,6 +118,10 @@ By default, dropout-dl will download episodes in a season with the format `<seri
 --episode           -e   Interpret the url as a link to a single episode
 --captions          -c   Download the captions along with the episode. Overridden by --captions-only if set.
 --captions-only     -co  Download the captions only, without the episode.
+--format              -f   Set the output container format (mp4 or mkv). Defaults to mp4
+--list-urls           -l   List the URLs of episodes that would be downloaded without downloading them
+--concurrent-segments -cs  Set the number of segments to download concurrently per stream.
+                            Higher values = faster downloads but more network connections. Defaults to 5
 ```
 
 If series, season, or episode is not used, the type will be inferred based on the link format.
