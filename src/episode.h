@@ -140,6 +140,15 @@ namespace dropout_dl {
 
 		/**
 		 *
+		 * @param episode_url - The URL of the episode
+		 * @return True if the episode is a special (BTS, cut-for-time, etc.)
+		 *
+		 * Detect if an episode should be placed in Season 0 (Specials) based on URL patterns
+		 */
+		static bool is_special_episode(const std::string& episode_url);
+
+		/**
+		 *
 		 * @param html_data - Episode page data
 		 * @return The url of the embedded page
 		 *

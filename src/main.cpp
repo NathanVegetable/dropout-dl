@@ -433,6 +433,9 @@ int main(int argc, char** argv) {
 		}
 		output_directory = options.output_directory + "/" + series_name;
 
+		// Track special episode numbering across all seasons
+		int special_index = 0;
+
 		// Try seasons sequentially until we hit a 404
 		for (int season_num = 1; season_num <= 20; season_num++) {
 			std::string season_url = options.url + "/season:" + std::to_string(season_num);
@@ -462,10 +465,28 @@ int main(int argc, char** argv) {
 			}
 			int ep_index = 0;
 			for (const auto& episode_url : season.episode_urls) {
-				if (options.verbose) {
-					std::cout << "Main: Season " << season_num << " - Creating episode object " << (ep_index + 1) << "/" << season.episode_urls.size() << " for URL: " << episode_url << '\n';
+				// Check if this is a special episode (BTS, cut-for-time, etc.)
+				bool is_special = dropout_dl::episode::is_special_episode(episode_url);
+				int episode_num;
+				int season_for_episode;
+				std::string season_name;
+
+				if (is_special) {
+					special_index++;
+					episode_num = special_index;
+					season_for_episode = 0;  // Season 0 = Specials
+					season_name = "Specials";
+				} else {
+					ep_index++;
+					episode_num = ep_index;
+					season_for_episode = season_num;
+					season_name = "Season " + std::to_string(season_num);
 				}
-				dropout_dl::episode ep(episode_url, options.session_cookie, series_name, "Season " + std::to_string(season_num), ep_index + 1, season_num, options.verbose, options.download_captions, options.download_captions_only);
+
+				if (options.verbose) {
+					std::cout << "Main: Season " << season_num << " - Creating episode object " << (ep_index + special_index) << "/" << season.episode_urls.size() << " for URL: " << episode_url << (is_special ? " (SPECIAL)" : "") << '\n';
+				}
+				dropout_dl::episode ep(episode_url, options.session_cookie, series_name, season_name, episode_num, season_for_episode, options.verbose, options.download_captions, options.download_captions_only);
 				if (options.verbose) {
 					std::cout << "Main: Episode object created successfully, adding to download list\n";
 				}
@@ -473,7 +494,6 @@ int main(int argc, char** argv) {
 				if (options.verbose) {
 					std::cout << "Main: Episode added to download list\n";
 				}
-				ep_index++;
 			}
 			if (options.verbose) {
 				std::cout << "Main: Season " << season_num << " - All episode objects created\n";
@@ -517,6 +537,50 @@ int main(int argc, char** argv) {
 			std::cout << "Main: output_directory = " << output_directory << '\n';
 		}
 
+		// Count specials in all previous seasons to get correct episode numbering
+		int special_index = 0;
+
+		// Extract base URL and season number to count previous specials
+		std::string base_series_url = options.url;
+		int current_season_num = 0;
+		size_t season_pos = options.url.find("/season:");
+		if (season_pos != std::string::npos) {
+			base_series_url = options.url.substr(0, season_pos);
+			current_season_num = std::stoi(options.url.substr(season_pos + 8)); // +8 for "/season:"
+
+			if (options.verbose) {
+				std::cout << "Main: Current season is " << current_season_num << ", counting specials in previous seasons\n";
+			}
+
+			// Count specials in all previous seasons
+			for (int prev_season = 1; prev_season < current_season_num; prev_season++) {
+				std::string prev_season_url = base_series_url + "/season:" + std::to_string(prev_season);
+
+				long status_code = -1;
+				std::string page_data = dropout_dl::get_generic_page(prev_season_url, "", &status_code);
+
+				if (status_code == 200) {
+					// Create temporary season object to get episode URLs
+					dropout_dl::season prev_season_obj(prev_season_url, "", options.session_cookie, series_name, false, false, options.rate_limit);
+
+					// Count specials in this season
+					for (const auto& url : prev_season_obj.episode_urls) {
+						if (dropout_dl::episode::is_special_episode(url)) {
+							special_index++;
+						}
+					}
+
+					if (options.verbose) {
+						std::cout << "Main: Found " << special_index << " total specials through season " << prev_season << '\n';
+					}
+				}
+			}
+
+			if (options.verbose) {
+				std::cout << "Main: Starting special episode numbering at s00e" << (special_index + 1) << '\n';
+			}
+		}
+
 		// Create season object to extract episode URLs (constructor populates episode_urls)
 		dropout_dl::season season(options.url, "", options.session_cookie, series_name, options.download_captions, options.download_captions_only, options.rate_limit);
 
@@ -527,10 +591,28 @@ int main(int argc, char** argv) {
 		}
 		int ep_index = 0;
 		for (const auto& episode_url : season.episode_urls) {
-			if (options.verbose) {
-				std::cout << "Main: Creating episode object " << (ep_index + 1) << "/" << season.episode_urls.size() << " for URL: " << episode_url << '\n';
+			// Check if this is a special episode (BTS, cut-for-time, etc.)
+			bool is_special = dropout_dl::episode::is_special_episode(episode_url);
+			int episode_num;
+			int season_for_episode;
+			std::string season_name;
+
+			if (is_special) {
+				special_index++;
+				episode_num = special_index;
+				season_for_episode = 0;  // Season 0 = Specials
+				season_name = "Specials";
+			} else {
+				ep_index++;
+				episode_num = ep_index;
+				season_for_episode = season.season_number;
+				season_name = "Season " + std::to_string(season.season_number);
 			}
-			dropout_dl::episode ep(episode_url, options.session_cookie, series_name, "Season " + std::to_string(season.season_number), ep_index + 1, season.season_number, options.verbose, options.download_captions, options.download_captions_only);
+
+			if (options.verbose) {
+				std::cout << "Main: Creating episode object " << (ep_index + special_index) << "/" << season.episode_urls.size() << " for URL: " << episode_url << (is_special ? " (SPECIAL)" : "") << '\n';
+			}
+			dropout_dl::episode ep(episode_url, options.session_cookie, series_name, season_name, episode_num, season_for_episode, options.verbose, options.download_captions, options.download_captions_only);
 			if (options.verbose) {
 				std::cout << "Main: Episode object created successfully, adding to download list\n";
 			}
@@ -538,7 +620,6 @@ int main(int argc, char** argv) {
 			if (options.verbose) {
 				std::cout << "Main: Episode added to download list\n";
 			}
-			ep_index++;
 		}
 		if (options.verbose) {
 			std::cout << "Main: All episode objects created\n";
