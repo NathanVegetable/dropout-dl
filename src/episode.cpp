@@ -587,8 +587,6 @@ namespace dropout_dl {
 
 		#ifdef DROPOUT_DL_FFMPEG
 		// Merge to temporary file first, then rename to final format when complete
-	std::string temp_output = filepath + "." + container_format + ".tmp";
-	std::string final_output = filepath + "." + container_format;
 	std::string ffmpeg_cmd = "ffmpeg -i '" + filepath + ".m4a.tmp' -i '" + filepath + ".m4s.tmp'";
 		if (!this->captions_url.empty()) {
 			ffmpeg_cmd += " -i '" + filepath + ".vtt.tmp' -metadata:s:s:0 language=eng";
