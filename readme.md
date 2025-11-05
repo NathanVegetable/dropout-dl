@@ -24,7 +24,7 @@
 
 **SUPPORT DROPOUT**: We strongly encourage you to [subscribe to Dropout](https://www.dropout.tv). They create amazing content and deserve your support. This tool exists solely for personal convenience (offline viewing, backups, Plex organization) for paying subscribers.
 
-**NO PIRACY**: Redistribution of downloaded content is illegal and explicitly discouraged. Do not share downloaded files. This is for your personal home viewing only. *(I'm a README, not a cop)*
+**NO PIRACY**: This tool is intended for personal use by paying subscribers who want offline access or Plex organization. Redistribution of downloaded content is illegal. I'm a README, not a cop, but please don't be that person who ruins it for everyone.
 
 ---
 

@@ -582,7 +582,20 @@ namespace dropout_dl {
 		}
 		int ffmpeg_ret = std::system(std::string(ffmpeg_cmd).c_str());
 
-if (ffmpeg_ret == 0) {		// Rename temporary files to final format only when merge succeeds		std::filesystem::rename(temp_output, final_output);		if (!this->captions_url.empty()) {			std::filesystem::rename(filepath + ".vtt.tmp", filepath + ".vtt");		}		// Clean up temporary segment files		std::filesystem::remove(filepath + ".m4a.tmp");		std::filesystem::remove(filepath + ".m4s.tmp");	}	else {		// Clean up failed temporary output		std::filesystem::remove(temp_output);	}
+	if (ffmpeg_ret == 0) {
+		// Rename temporary files to final format only when merge succeeds
+		std::filesystem::rename(temp_output, final_output);
+		if (!this->captions_url.empty()) {
+			std::filesystem::rename(filepath + ".vtt.tmp", filepath + ".vtt");
+		}
+		// Clean up temporary segment files
+		std::filesystem::remove(filepath + ".m4a.tmp");
+		std::filesystem::remove(filepath + ".m4s.tmp");
+	}
+	else {
+		// Clean up failed temporary output
+		std::filesystem::remove(temp_output);
+	}
 		#endif
 
 		std::cout << GREEN << filepath << RESET;
