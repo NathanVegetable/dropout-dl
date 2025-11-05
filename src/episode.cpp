@@ -6,6 +6,8 @@
 #include <regex>
 #include <algorithm>
 #include <thread>
+#include <future>
+#include <map>
 
 namespace dropout_dl {
 	nlohmann::json episode::get_meta_data_json(const std::string& html_data) {
@@ -374,7 +376,7 @@ namespace dropout_dl {
 	}
 
 
-	void episode::download_quality(const std::string& quality, const std::string& base_directory, const std::string& filename, const std::string& audio_quality, const std::string& container_format, bool parallel_streams) {
+	void episode::download_quality(const std::string& quality, const std::string& base_directory, const std::string& filename, const std::string& audio_quality, const std::string& container_format, int segment_buffer_size) {
 		if (!this->is_from_cdn) {
 			std::cerr << "EPISODE ERROR: Episode does not use CDN. Please report this issue on GitHub with the download url used.\n";
 			return;
@@ -646,7 +648,7 @@ namespace dropout_dl {
 		return relative_path;
 	}
 
-	void episode::download(const std::string& quality, const std::string& series_directory, std::string filename, const std::string& container_format, bool parallel_streams) {
+	void episode::download(const std::string& quality, const std::string& series_directory, std::string filename, const std::string& container_format, int segment_buffer_size) {
 		// Build the full path with Season subdirectory (Plex format: "Series Name/Season 01/")
 		std::string download_directory = get_download_directory(series_directory);
 
@@ -664,7 +666,7 @@ namespace dropout_dl {
 				// Determine audio quality based on video quality
 			int video_res = get_int_in_string(possible_video_quality);
 			std::string audio_qual = (video_res >= 720) ? "highest" : "medium";
-			this->download_quality(possible_video_quality, download_directory + "/" + possible_video_quality, filename, audio_qual, container_format, parallel_streams);
+			this->download_quality(possible_video_quality, download_directory + "/" + possible_video_quality, filename, audio_qual, container_format, segment_buffer_size);
 			}
 		}
 		else if (quality == "highest") {
@@ -678,7 +680,7 @@ namespace dropout_dl {
 					highest_quality = possible_quality;
 				}
 			}
-			this->download_quality(highest_quality, download_directory, filename, "highest", container_format, parallel_streams);
+			this->download_quality(highest_quality, download_directory, filename, "highest", container_format, segment_buffer_size);
 		}
 		else if (quality == "lowest") {
 			std::string lowest_quality;
@@ -691,14 +693,14 @@ namespace dropout_dl {
 					lowest_quality = possible_quality;
 				}
 			}
-			this->download_quality(lowest_quality, download_directory, filename, "lowest", container_format, parallel_streams);
+			this->download_quality(lowest_quality, download_directory, filename, "lowest", container_format, segment_buffer_size);
 		}
 		else {
 			// Specific quality like 720p, 1080p, etc.
 			// Use highest audio for 720p and above, medium for lower resolutions
 			int video_res = get_int_in_string(quality);
 			std::string audio_qual = (video_res >= 720) ? "highest" : "medium";
-			this->download_quality(quality, download_directory, filename, audio_qual, container_format, parallel_streams);
+			this->download_quality(quality, download_directory, filename, audio_qual, container_format, segment_buffer_size);
 		}
 	}
 
