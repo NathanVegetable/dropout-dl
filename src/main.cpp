@@ -121,14 +121,14 @@ namespace dropout_dl {
 					}
 					rate_limit = std::stoi(args[++i]);
 				}
-				else if (arg == "paralleltasks" || arg == "p") {
+				else if (arg == "concurrent-segments" || arg == "cs") {
 					if (i + 1 >= args.size()) {
-						std::cerr << "ARGUMENT PARSE ERROR: --paralleltasks used with too few following arguments\n";
+						std::cerr << "ARGUMENT PARSE ERROR: --concurrent-segments used with too few following arguments\n";
 						exit(8);
 					}
 					segment_buffer_size = std::stoi(args[++i]);
 					if (segment_buffer_size < 1) {
-						std::cerr << "ARGUMENT PARSE ERROR: --paralleltasks must be at least 1\n";
+						std::cerr << "ARGUMENT PARSE ERROR: --concurrent-segments must be at least 1\n";
 						exit(8);
 					}
 				}
@@ -185,7 +185,7 @@ namespace dropout_dl {
 								 "\t--browser-cookies   -bc  Use cookies from the browser placed in 'firefox_profile' or 'chrome_profile'\n"
 								 "\t--rate              -r   Set the ammount of time in milliseconds between getting episodes\n"
 								 "\t                             Only affects series and season downloads. Defaults to 2000\n"
-								 "\t--paralleltasks     -p   Set the segment buffer size for concurrent segment downloads.\n"
+								 "\t--concurrent-segments -cs Set the number of segments to download concurrently per stream.\n"
 								 "\t                             Higher values = faster downloads but more network connections. Defaults to 5\n"
 								 "\t--force-cookies          Interpret the next argument as the session cookie\n"
 								 "\t--login-file        -lf  Use the next argument as the path to the login file\n"
